@@ -36,6 +36,11 @@ public class GroupMember {
     @Builder.Default
     private GroupRole role = GroupRole.MEMBER;
 
+    /** Thành viên chọn ẩn danh khi được duyệt từ một application. */
+    @Column(name = "member_anonymous", nullable = false, columnDefinition = "boolean not null default false")
+    @Builder.Default
+    private boolean memberAnonymous = false;
+
     // Thời điểm gia nhập nhóm
     @CreationTimestamp
     @Column(name = "joined_at", nullable = false, updatable = false)

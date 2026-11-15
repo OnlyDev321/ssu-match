@@ -13,6 +13,7 @@ import { Button } from "@/design-system";
 import { useLanguageStore } from "@/stores/languageStore";
 import LanguageSwitcher from "@/components/layout/LanguageSwitcher";
 import NotificationDropdown from "@/components/layout/NotificationDropdown";
+import MessengerDropdown from "@/components/layout/MessengerDropdown";
 import { BrandLogo } from "@/components/layout/BrandLogo";
 
 export default function Header() {
@@ -65,6 +66,7 @@ export default function Header() {
             {isLoggedIn ? (
               <>
                 {/* Notification Dropdown */}
+                <MessengerDropdown />
                 <NotificationDropdown />
 
                 {/* User Dropdown Trigger */}

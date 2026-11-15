@@ -50,5 +50,9 @@ public class CreateGroupRequest {
     private Integer maxMembers;
 
     private List<GroupRoleQuota> rolesQuota;
+
+    /** Người tạo có muốn ẩn danh trên group page hay không. */
+    @Builder.Default
+    private boolean leaderAnonymous = false;
 }
 

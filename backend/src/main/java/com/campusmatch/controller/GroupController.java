@@ -4,6 +4,7 @@ import com.campusmatch.dto.CreateGroupRequest;
 import com.campusmatch.dto.GroupDetailResponse;
 import com.campusmatch.dto.GroupSummaryResponse;
 import com.campusmatch.dto.UpdateGroupRequest;
+import com.campusmatch.dto.UpdateMemberPrivacyRequest;
 import com.campusmatch.entity.GroupStatus;
 import com.campusmatch.service.GroupService;
 import jakarta.validation.Valid;
@@ -93,6 +94,18 @@ public class GroupController {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Vui lòng đăng nhập để cập nhật nhóm");
         }
         return ResponseEntity.ok(groupService.updateGroup(id, request, authentication.getName()));
+    }
+
+    @PatchMapping("/{id}/members/me/privacy")
+    public ResponseEntity<Void> updateMemberPrivacy(
+            @PathVariable Long id,
+            @RequestBody UpdateMemberPrivacyRequest request,
+            Authentication authentication) {
+        if (authentication == null || authentication.getName() == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Vui lòng đăng nhập để thực hiện thao tác");
+        }
+        groupService.updateMemberPrivacy(id, request.isAnonymous(), authentication.getName());
+        return ResponseEntity.noContent().build();
     }
 
     /**

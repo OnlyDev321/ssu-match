@@ -21,12 +21,14 @@ import {
   Compass,
   Sparkles,
   AlertCircle,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { Card, Badge, Button, Avatar, RoleQuota } from "@/design-system";
 import ApplyModal from "@/components/application/ApplyModal";
 import type { GroupTranslationState } from "@/lib/types";
 import TranslateButton from "@/components/common/TranslateButton";
-import { fetchGroupDetail } from "@/services/groupService";
+import { fetchGroupDetail, updateMyGroupIdentity } from "@/services/groupService";
 import { getMyApplications } from "@/services/applicationService";
 import { useServiceData } from "@/lib/hooks";
 import { CardSkeletonList, ErrorState } from "@/components/common/AsyncState";
@@ -51,6 +53,7 @@ export default function GroupDetailPage({ params }: GroupDetailPageProps) {
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
   const [justApplied, setJustApplied] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [privacyUpdating, setPrivacyUpdating] = useState(false);
 
   // Translation States
   const [translation, setTranslation] = useState<GroupTranslationState | null>(null);
@@ -148,6 +151,17 @@ export default function GroupDetailPage({ params }: GroupDetailPageProps) {
   const handleApplySuccess = () => {
     setJustApplied(true);
     reloadMyApplications();
+  };
+
+  const handleIdentityToggle = async (anonymous: boolean) => {
+    if (!group || privacyUpdating) return;
+    try {
+      setPrivacyUpdating(true);
+      await updateMyGroupIdentity(group.id, anonymous);
+      await reload();
+    } finally {
+      setPrivacyUpdating(false);
+    }
   };
 
   return (
@@ -551,50 +565,82 @@ export default function GroupDetailPage({ params }: GroupDetailPageProps) {
             </Card>
 
             {/* Current Members List Card */}
-            <Card className="p-4 sm:p-5 space-y-3 min-w-0">
-              <div className="flex items-center justify-between pb-2 border-b border-[var(--border-muted)]">
-                <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
-                  <ScrambleText text={formatMessage(copy.roster, { current: group.memberCount, max: group.maxMembers })} protectedValues={[...Object.values({ current: group.memberCount, max: group.maxMembers })]} />
-                </span>
-                <span className="text-[11px] text-[var(--text-muted)]">
+            <Card className="min-w-0 space-y-5 p-5 sm:p-6">
+              <div className="flex items-start justify-between gap-4 border-b border-[var(--border-muted)] pb-4">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--primary-soft)] text-[var(--primary)]">
+                    <Users className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0">
+                    <h2 className="text-sm font-bold uppercase tracking-[0.12em] text-[var(--text-primary)]">
+                      <ScrambleText text={formatMessage(copy.roster, { current: group.memberCount, max: group.maxMembers })} protectedValues={[...Object.values({ current: group.memberCount, max: group.maxMembers })]} />
+                    </h2>
+                    <p className="mt-1 text-xs text-[var(--text-muted)]">
+                      <ScrambleText text={copy.memberPrivacyDescription} />
+                    </p>
+                  </div>
+                </div>
+                <span className="shrink-0 pt-1 text-xs font-medium text-[var(--text-muted)]">
                   <ScrambleText text={formatMessage(copy.openCount, { count: spotsLeft })} protectedValues={[...Object.values({ count: spotsLeft })]} />
                 </span>
               </div>
 
-              <div className="space-y-2">
-                {group.membersList?.map((member) => (
-                  <div
-                    key={member.id}
-                    className="flex items-center justify-between gap-2.5 p-2 rounded-xl hover:bg-[var(--surface-container-low)] transition-colors min-w-0"
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                      <Avatar
-                        src={member.avatarUrl}
-                        name={member.name}
-                        size="sm"
-                        className="shrink-0"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <span className="text-xs font-semibold text-[var(--text-primary)] truncate">
-                            {member.name}
-                          </span>
-                          {member.isLeader && (
-                            <span className="text-[10px] font-mono text-[var(--primary)] bg-[var(--primary-soft)] px-1.5 py-0.2 rounded border border-[var(--primary-soft-border)] shrink-0">
-                              <ScrambleText text={t.myGroupCard.leader} />
+              <div className="space-y-3">
+                {group.membersList?.map((member) => {
+                  const displayName = member.isAnonymous
+                    ? member.isLeader ? copy.anonymousLeader : copy.anonymousMember
+                    : member.name;
+                  const privacyLabel = member.isAnonymous ? copy.anonymousStatus : member.role;
+                  return (
+                    <div
+                      key={member.id}
+                      className="flex min-w-0 flex-col gap-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-container-low)]/55 p-4 transition-colors hover:border-[var(--border-strong)] hover:bg-[var(--surface-container-low)] sm:flex-row sm:items-center sm:gap-4"
+                    >
+                      <div className="flex min-w-0 flex-1 items-start gap-3">
+                        <Avatar
+                          src={member.isAnonymous ? undefined : member.avatarUrl}
+                          name={displayName}
+                          size="md"
+                          className="shrink-0 ring-1 ring-[var(--border)]"
+                        />
+                        <div className="min-w-0 flex-1 pt-0.5">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className="min-w-0 flex-1 whitespace-normal break-words text-sm font-semibold leading-snug text-[var(--text-primary)]">
+                              {displayName}
                             </span>
-                          )}
-                          {isLoggedIn && member.isCurrentUser && (
-                            <Badge variant="primary" size="sm"><ScrambleText text={copy.you} /></Badge>
-                          )}
+                            {member.isCurrentUser && (
+                              <Badge variant="primary" size="sm" className="shrink-0"><ScrambleText text={copy.you} /></Badge>
+                            )}
+                          </div>
+                          <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                            {member.isLeader && (
+                              <span className="inline-flex items-center rounded-md border border-[var(--primary-soft-border)] bg-[var(--primary-soft)] px-2 py-0.5 text-[10px] font-semibold text-[var(--primary)]">
+                                <ScrambleText text={copy.leaderShort} />
+                              </span>
+                            )}
+                            <span className="inline-flex items-center gap-1 text-[11px] text-[var(--text-muted)]">
+                              {member.isAnonymous ? <EyeOff className="h-3 w-3" aria-hidden="true" /> : <Users className="h-3 w-3" aria-hidden="true" />}
+                              <ScrambleText text={privacyLabel} />
+                            </span>
+                          </div>
                         </div>
-                        <span className="text-[11px] text-[var(--text-muted)] truncate block">
-                          {member.role}
-                        </span>
                       </div>
+
+                      {isLoggedIn && member.isCurrentUser && (
+                        <button
+                          type="button"
+                          disabled={privacyUpdating}
+                          onClick={() => void handleIdentityToggle(Boolean(!member.isAnonymous))}
+                          aria-pressed={!member.isAnonymous}
+                          className="inline-flex min-h-10 w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-xs font-semibold text-[var(--text-secondary)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)] disabled:cursor-wait disabled:opacity-50 sm:w-auto sm:min-w-36"
+                        >
+                          {member.isAnonymous ? <Eye className="h-4 w-4" aria-hidden="true" /> : <EyeOff className="h-4 w-4" aria-hidden="true" />}
+                          <ScrambleText text={member.isAnonymous ? copy.revealIdentity : copy.hideIdentity} />
+                        </button>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </Card>
 

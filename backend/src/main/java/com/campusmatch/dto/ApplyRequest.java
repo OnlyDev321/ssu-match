@@ -14,5 +14,9 @@ public class ApplyRequest {
     private String statement;
 
     private String desiredRole;
+
+    /** Ứng viên chọn ẩn danh trên đơn ứng tuyển hay không. */
+    @Builder.Default
+    private boolean applicantAnonymous = false;
 }
 

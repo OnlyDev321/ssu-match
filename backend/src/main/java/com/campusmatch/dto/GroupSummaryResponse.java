@@ -26,6 +26,8 @@ public class GroupSummaryResponse {
     private GroupStatus status;
     private List<GroupRoleQuota> rolesQuota;
     private AuthResponse.UserSummary leader;
+    private boolean leaderAnonymous;
+    private boolean postAnonymous;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

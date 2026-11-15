@@ -10,8 +10,9 @@ import {
   Code2,
   Globe,
   ShieldCheck,
+  EyeOff,
 } from "lucide-react";
-import { Modal, Button, Badge, Avatar, Input } from "@/design-system";
+import { Modal, Button, Badge, Avatar, Input, Radio } from "@/design-system";
 import { useLanguageStore } from "@/stores/languageStore";
 import { formatMessage, maskStudentId } from "@/lib/format";
 import { useAuthStore } from "@/stores/authStore";
@@ -39,6 +40,7 @@ function ApplyModalContent({
   const [skills, setSkills] = useState<string>("");
   const [githubUrl, setGithubUrl] = useState<string>("");
   const [portfolioUrl, setPortfolioUrl] = useState<string>("");
+  const [applicantAnonymous, setApplicantAnonymous] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -77,7 +79,7 @@ function ApplyModalContent({
         githubUrl.trim() && `GitHub: ${githubUrl.trim()}`,
         portfolioUrl.trim() && `Portfolio: ${portfolioUrl.trim()}`,
       ].filter(Boolean).join("\n");
-      await applyToGroup(group.id, applicationStatement, selectedRole || undefined);
+      await applyToGroup(group.id, applicationStatement, selectedRole || undefined, applicantAnonymous);
       setIsSuccess(true);
       onSuccess?.(group.id);
     } catch (error) {
@@ -90,6 +92,7 @@ function ApplyModalContent({
   const handleFinish = () => {
     setIsSuccess(false);
     setStatement("");
+    setApplicantAnonymous(true);
     onClose();
   };
 
@@ -148,15 +151,15 @@ function ApplyModalContent({
           <div className="p-3.5 rounded-lg border border-[var(--border)] bg-[var(--surface-container-low)] flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <Avatar
-                src={user?.avatarUrl}
-                name={user?.name || copy.student}
+                src={applicantAnonymous ? undefined : user?.avatarUrl}
+                name={applicantAnonymous ? copy.anonymousApplicant : user?.name || copy.student}
                 size="md"
                 className="ring-1 ring-[var(--border)]"
               />
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-bold text-[var(--text-primary)] truncate">
-                    {user?.name || <ScrambleText text={copy.student} />}
+                    {applicantAnonymous ? <ScrambleText text={copy.anonymousApplicant} /> : user?.name || <ScrambleText text={copy.student} />}
                   </span>
                   <span className="inline-flex items-center gap-1 text-[11px] font-mono text-[var(--success-text)] bg-[var(--success-bg)] px-2 py-0.5 rounded border border-[var(--success-border)]">
                     <ShieldCheck className="w-3 h-3" />
@@ -164,11 +167,11 @@ function ApplyModalContent({
                   </span>
                 </div>
                 <p className="text-xs text-[var(--text-muted)] truncate">
-                  {user?.studentId ? maskStudentId(user.studentId) : <ScrambleText text={t.groupDetail.notProvided} />} •{" "}
+                  {applicantAnonymous ? <ScrambleText text={copy.anonymousApplicantDescription} /> : <>{user?.studentId ? maskStudentId(user.studentId) : <ScrambleText text={t.groupDetail.notProvided} />} •{" "}
                   {user?.department || group.department} •{" "}
                   <ScrambleText text={user?.academicYear
                     ? formatMessage(t.profile.yearBadge, { year: user.academicYear })
-                    : copy.undergraduate} protectedValues={[user?.academicYear ?? ""]} />
+                    : copy.undergraduate} protectedValues={[user?.academicYear ?? ""]} /></>}
                 </p>
               </div>
             </div>
@@ -176,6 +179,19 @@ function ApplyModalContent({
               <ScrambleText text={copy.applicant} />
             </Badge>
           </div>
+
+          <fieldset className="space-y-3 rounded-lg border border-[var(--primary-soft-border)] bg-[var(--primary-soft)] p-3.5">
+            <legend className="px-1 text-xs font-semibold text-[var(--text-primary)]"><ScrambleText text={copy.identityTitle} /></legend>
+            <p className="text-xs leading-relaxed text-[var(--text-muted)]"><ScrambleText text={copy.identityDescription} /></p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <Radio name="applicant-identity" value="anonymous" checked={applicantAnonymous} onChange={() => setApplicantAnonymous(true)} label={copy.identityAnonymous} description={copy.identityAnonymousDescription} />
+              <Radio name="applicant-identity" value="public" checked={!applicantAnonymous} onChange={() => setApplicantAnonymous(false)} label={copy.identityPublic} description={copy.identityPublicDescription} />
+            </div>
+            <div className="flex items-start gap-2 text-xs text-[var(--text-secondary)]">
+              <EyeOff className="mt-0.5 h-4 w-4 shrink-0 text-[var(--primary)]" aria-hidden="true" />
+              <span><ScrambleText text={copy.privacyNote} /></span>
+            </div>
+          </fieldset>
 
           {/* Role Selection */}
           {availableRoles.length > 0 && <div className="space-y-2">

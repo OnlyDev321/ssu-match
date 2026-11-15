@@ -70,7 +70,7 @@ public class GroupService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ tiêu vị trí không khớp sĩ số nhóm");
         }
 
-        String contactEmail = StringUtils.hasText(request.getContactEmail()) ? request.getContactEmail().trim() : null;
+        String contactEmail = !request.isLeaderAnonymous() && StringUtils.hasText(request.getContactEmail()) ? request.getContactEmail().trim() : null;
         if (contactEmail != null && contactEmail.contains(leader.getStudentId())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email liên hệ không được chứa mã sinh viên đầy đủ");
         }
@@ -78,6 +78,8 @@ public class GroupService {
         // 1. Tạo thực thể StudyGroup kế thừa khoa/viện từ u-SAINT của Leader
         StudyGroup group = StudyGroup.builder()
                 .leader(leader)
+                .leaderAnonymous(request.isLeaderAnonymous())
+                .postAnonymous(request.isLeaderAnonymous())
                 .title(request.getTitle().trim())
                 .description(request.getDescription().trim())
                 .college(leader.getFaculty() != null ? leader.getFaculty() : "Chưa xác định")
@@ -89,7 +91,7 @@ public class GroupService {
                 .tags(request.getTags() == null ? new ArrayList<>() : request.getTags().stream()
                         .map(String::trim).distinct().collect(Collectors.toCollection(ArrayList::new)))
                 .contactEmail(contactEmail)
-                .contactPhone(StringUtils.hasText(request.getContactPhone()) ? request.getContactPhone().trim() : null)
+                .contactPhone(!request.isLeaderAnonymous() && StringUtils.hasText(request.getContactPhone()) ? request.getContactPhone().trim() : null)
                 .maxMembers(request.getMaxMembers())
                 .rolesQuota(rolesQuota)
                 .status(GroupStatus.RECRUITING)
@@ -204,8 +206,8 @@ public class GroupService {
         if (contactEmail != null && contactEmail.contains(group.getLeader().getStudentId())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email liên hệ không được chứa mã sinh viên đầy đủ");
         }
-        group.setContactEmail(contactEmail);
-        group.setContactPhone(StringUtils.hasText(request.getContactPhone()) ? request.getContactPhone().trim() : null);
+        group.setContactEmail(group.isLeaderAnonymous() ? null : contactEmail);
+        group.setContactPhone(group.isLeaderAnonymous() ? null : StringUtils.hasText(request.getContactPhone()) ? request.getContactPhone().trim() : null);
         group.setMaxMembers(capacity);
         group.setStatus(memberCount >= capacity ? GroupStatus.COMPLETED : GroupStatus.RECRUITING);
         return mapToDetailResponse(groupRepository.save(group));
@@ -329,7 +331,9 @@ public class GroupService {
                     .memberCount(memberCount)
                     .status(group.getStatus())
                     .rolesQuota(group.getRolesQuota())
-                    .leader(mapToUserSummary(group.getLeader()))
+                    .leader(mapToUserSummary(group.getLeader(), group.isPostAnonymous()))
+                    .leaderAnonymous(group.isPostAnonymous())
+                    .postAnonymous(group.isPostAnonymous())
                     .createdAt(group.getCreatedAt())
                     .updatedAt(group.getUpdatedAt())
                     .build();
@@ -345,6 +349,23 @@ public class GroupService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy nhóm với ID: " + groupId));
 
         return mapToDetailResponse(group);
+    }
+
+    /** Cho phép thành viên tự bật/tắt hiển thị danh tính trên group detail. */
+    @Transactional
+    public void updateMemberPrivacy(Long groupId, boolean anonymous, String studentId) {
+        User user = userRepository.findByStudentId(studentId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hồ sơ sinh viên"));
+        GroupMember member = groupMemberRepository.findByGroupIdAndUserId(groupId, user.getId())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.FORBIDDEN, "Bạn chưa là thành viên của nhóm này"));
+        if (member.getRole() == GroupRole.LEADER) {
+            StudyGroup group = member.getGroup();
+            group.setLeaderAnonymous(anonymous);
+            groupRepository.save(group);
+            return;
+        }
+        member.setMemberAnonymous(anonymous);
+        groupMemberRepository.save(member);
     }
 
     /**
@@ -420,7 +441,8 @@ public class GroupService {
                 .memberCount((long) members.size())
                 .status(group.getStatus())
                 .rolesQuota(group.getRolesQuota())
-                .leader(mapToUserSummary(group.getLeader()))
+                .leader(mapToUserSummary(group.getLeader(), group.isLeaderAnonymous()))
+                .leaderAnonymous(group.isLeaderAnonymous())
                 .members(memberSummaries)
                 .createdAt(group.getCreatedAt())
                 .updatedAt(group.getUpdatedAt())
@@ -429,20 +451,42 @@ public class GroupService {
 
     private GroupMemberSummaryResponse mapToMemberSummaryResponse(GroupMember member) {
         User u = member.getUser();
+        boolean anonymous = member.getRole() == GroupRole.LEADER
+                ? member.getGroup().isLeaderAnonymous()
+                : member.isMemberAnonymous();
         return GroupMemberSummaryResponse.builder()
                 .userId(u.getId())
-                .studentId(StudentIdPrivacy.publicStudentId(u.getStudentId()))
-                .name(u.getName())
-                .department(u.getDepartment())
-                .faculty(u.getFaculty())
-                .avatarUrl(u.getAvatarUrl())
+                .studentId(anonymous ? "***" : StudentIdPrivacy.publicStudentId(u.getStudentId()))
+                .name(anonymous ? "Người dùng ẩn danh" : u.getName())
+                .department(anonymous ? null : u.getDepartment())
+                .faculty(anonymous ? null : u.getFaculty())
+                .avatarUrl(anonymous ? null : u.getAvatarUrl())
                 .role(member.getRole().name())
+                .anonymous(anonymous)
                 .joinedAt(member.getJoinedAt())
                 .build();
     }
 
     private AuthResponse.UserSummary mapToUserSummary(User user) {
+        return mapToUserSummary(user, false);
+    }
+
+    private AuthResponse.UserSummary mapToUserSummary(User user, boolean anonymous) {
         if (user == null) return null;
+        if (anonymous) {
+            return AuthResponse.UserSummary.builder()
+                    .id(user.getId())
+                    .studentId("***")
+                    .name("Người tạo nhóm ẩn danh")
+                    .department(null)
+                    .faculty(null)
+                    .email(null)
+                    .academicYear(null)
+                    .phoneNumber(null)
+                    .avatarUrl(null)
+                    .role(user.getRole())
+                    .build();
+        }
         return AuthResponse.UserSummary.builder()
                 .id(user.getId())
                 .studentId(StudentIdPrivacy.publicStudentId(user.getStudentId()))

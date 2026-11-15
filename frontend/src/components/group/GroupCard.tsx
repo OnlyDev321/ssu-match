@@ -35,7 +35,11 @@ const GroupCard = ({ group, isMember, isPendingApplication, membershipReady, onJ
     leaderId,
     status,
     rolesQuota,
+    postAnonymous,
   } = group;
+  const visibleLeaderName = postAnonymous ? t.groupDetail.anonymousLeader : leaderName;
+  const visibleLeaderAvatar = postAnonymous ? undefined : leaderAvatarUrl;
+  const visibleLeaderMajor = postAnonymous ? "" : leaderMajor;
 
   const spotsLeft = Math.max(maxMembers - memberCount, 0);
   const isFull = spotsLeft === 0 || Boolean(rolesQuota?.length && rolesQuota.every((role) => role.current >= role.max));
@@ -83,17 +87,17 @@ const GroupCard = ({ group, isMember, isPendingApplication, membershipReady, onJ
       <CardFooter className="pt-3 border-t border-[var(--border-muted)]">
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
           <Avatar
-            src={leaderAvatarUrl}
-            name={leaderName}
+            src={visibleLeaderAvatar}
+            name={visibleLeaderName}
             size="md"
             className="ring-1 ring-[var(--border)] shrink-0"
           />
           <div className="min-w-0 flex flex-col">
             <span className="text-xs font-semibold text-[var(--text-primary)] truncate">
-              {leaderName}
+              {visibleLeaderName}
             </span>
             <span className="text-[11px] text-[var(--text-muted)] truncate">
-              {leaderMajor}
+              {visibleLeaderMajor}
             </span>
           </div>
         </div>

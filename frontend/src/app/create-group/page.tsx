@@ -35,6 +35,7 @@ import {
   Input,
   Modal,
   RoleQuota,
+  Radio,
 } from "@/design-system";
 import { createGroup } from "@/services/groupService";
 import { useRequireLogin } from "@/lib/hooks";
@@ -84,6 +85,7 @@ export default function CreateGroupPage() {
         description: "",
       },
     ],
+    leaderAnonymous: true,
   });
 
   // Vai trò được Trưởng nhóm (người tạo) đảm nhận
@@ -108,6 +110,15 @@ export default function CreateGroupPage() {
     if (errors[field as keyof CreateGroupFormErrors]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
+  };
+
+  const handleIdentityChange = (anonymous: boolean) => {
+    setFormData((prev) => ({
+      ...prev,
+      leaderAnonymous: anonymous,
+      publishEmail: anonymous ? false : prev.publishEmail,
+      publishPhone: anonymous ? false : prev.publishPhone,
+    }));
   };
 
   // Thêm tag từ khóa
@@ -334,6 +345,7 @@ export default function CreateGroupPage() {
           tags: formData.tags,
           rolesQuota:
             cleanedRolesQuota.length > 0 ? cleanedRolesQuota : undefined,
+          leaderAnonymous: formData.leaderAnonymous,
         },
       );
 
@@ -508,6 +520,37 @@ export default function CreateGroupPage() {
 
               <fieldset className="space-y-4 border-t border-[var(--border-muted)] pt-5">
                 <legend className="text-sm font-semibold text-[var(--text-primary)] pt-4">
+                  <ScrambleText text={copy.identityTitle} />
+                </legend>
+                <p className="text-xs text-[var(--text-muted)]">
+                  <ScrambleText text={copy.identityDescription} />
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-[var(--radius-input)] bg-[var(--primary-soft)] border border-[var(--primary-soft-border)]">
+                  <Radio
+                    name="leader-anonymous"
+                    value="anonymous"
+                    checked={formData.leaderAnonymous}
+                    onChange={() => handleIdentityChange(true)}
+                    label={copy.identityAnonymous}
+                    description={copy.identityAnonymousDescription}
+                  />
+                  <Radio
+                    name="leader-anonymous"
+                    value="public"
+                    checked={!formData.leaderAnonymous}
+                    onChange={() => handleIdentityChange(false)}
+                    label={copy.identityPublic}
+                    description={copy.identityPublicDescription}
+                  />
+                </div>
+                <div className="flex items-start gap-2 text-xs text-[var(--text-secondary)]">
+                  <ShieldCheck className="w-4 h-4 text-[var(--success)] shrink-0 mt-0.5" />
+                  <span><ScrambleText text={copy.identityPrivacyNote} /></span>
+                </div>
+              </fieldset>
+
+              <fieldset className="space-y-4 border-t border-[var(--border-muted)] pt-5">
+                <legend className="text-sm font-semibold text-[var(--text-primary)] pt-4">
                   <ScrambleText text={copy.contactTitle} />
                 </legend>
                 <p className="text-xs text-[var(--text-muted)]">
@@ -530,6 +573,7 @@ export default function CreateGroupPage() {
                       <input
                         type="checkbox"
                         checked={formData.publishEmail}
+                        disabled={formData.leaderAnonymous}
                         onChange={(event) => updateField("publishEmail", event.target.checked)}
                         className="mt-0.5 accent-[var(--primary)]"
                       />
@@ -552,6 +596,7 @@ export default function CreateGroupPage() {
                       <input
                         type="checkbox"
                         checked={formData.publishPhone}
+                        disabled={formData.leaderAnonymous}
                         onChange={(event) => updateField("publishPhone", event.target.checked)}
                         className="mt-0.5 accent-[var(--primary)]"
                       />
@@ -1134,18 +1179,18 @@ export default function CreateGroupPage() {
               <CardFooter className="pt-3 border-t border-[var(--border-muted)]">
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                   <Avatar
-                    src={user?.avatarUrl}
-                    name={user?.name || copy.leaderYou}
+                    src={formData.leaderAnonymous ? undefined : user?.avatarUrl}
+                    name={formData.leaderAnonymous ? t.groupDetail.anonymousLeader : user?.name || copy.leaderYou}
                     size="md"
                     className="ring-1 ring-[var(--border)] shrink-0"
                   />
                   <div className="min-w-0 flex flex-col">
                     <span className="text-xs font-semibold text-[var(--text-primary)] truncate">
-                      {user?.name || copy.verifiedStudent}
+                      {formData.leaderAnonymous ? t.groupDetail.anonymousLeader : user?.name || copy.verifiedStudent}
                     </span>
-                    <span className="text-[11px] text-[var(--text-muted)] truncate">
-                      {departmentDisplay}
-                    </span>
+                    {!formData.leaderAnonymous && (
+                      <span className="text-[11px] text-[var(--text-muted)] truncate">{departmentDisplay}</span>
+                    )}
                   </div>
                 </div>
 
@@ -1289,18 +1334,14 @@ export default function CreateGroupPage() {
           <div className="flex items-center justify-end gap-2.5 w-full">
             <Button
               variant="outline"
-              onClick={() =>
-                router.push(
-                  createdGroup ? `/groups/${createdGroup.id}` : "/groups",
-                )
-              }
+              onClick={() => router.push(createdGroup ? `/groups/${createdGroup.id}` : "/groups")}
               className="text-xs font-semibold"
             >
               <ScrambleText text={copy.viewGroupBtn} />
             </Button>
             <Button
               variant="primary"
-              onClick={() => router.push("/manage")}
+              onClick={() => router.push("/groups")}
               className="text-xs font-semibold"
               leftIcon={<CheckCircle2 className="w-4 h-4" />}
             >

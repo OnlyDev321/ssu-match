@@ -32,6 +32,11 @@ public class Application {
     @JoinColumn(name = "applicant_id", nullable = false)
     private User applicant;
 
+    /** Ẩn danh ứng viên với trưởng nhóm và các thành viên khác. */
+    @Column(name = "applicant_anonymous", nullable = false, columnDefinition = "boolean not null default true")
+    @Builder.Default
+    private boolean applicantAnonymous = false;
+
     // Lời giới thiệu / nguyện vọng của ứng viên
     @Column(columnDefinition = "TEXT")
     private String statement;

@@ -535,6 +535,9 @@ export interface GroupCardData {
   leaderId: number;         // ID trưởng nhóm trong database
   leaderAvatarUrl?: string; // Ảnh đại diện của trưởng nhóm
   leaderMajor: string;      // Ngành học của trưởng nhóm
+  /** Người tạo nhóm có chọn ẩn danh hay không. */
+  leaderAnonymous: boolean;
+  postAnonymous: boolean;
   memberCount: number;      // Số thành viên hiện tại
   maxMembers: number;       // Sĩ số tối đa của nhóm
   status: GroupStatusCode;  // Trạng thái tuyển thành viên từ database
@@ -606,6 +609,10 @@ export interface GroupSummaryResponse {
   /** Trạng thái nhóm. */ status: GroupStatusCode;
   /** Các vai trò và chỉ tiêu đã lưu cho nhóm. */ rolesQuota?: GroupRoleQuota[];
   /** Trưởng nhóm. */ leader: UserSummary;
+  /** Người tạo chọn ẩn danh trên group page hay không. */
+  leaderAnonymous: boolean;
+  /** Lựa chọn ẩn danh ban đầu của bài đăng, không đổi khi cập nhật danh tính trong nhóm. */
+  postAnonymous: boolean;
   /** Thời điểm tạo. */ createdAt: string;
   /** Thời điểm cập nhật. */ updatedAt: string | null;
 }
@@ -619,6 +626,8 @@ export interface GroupMemberResponse {
   /** Trường/viện. */ faculty: string | null;
   /** Ảnh đại diện. */ avatarUrl: string | null;
   /** Vai trò trong nhóm. */ role: GroupMemberRole;
+  /** Thành viên có đang ẩn danh trên group detail hay không. */
+  anonymous: boolean;
   /** Thời điểm gia nhập. */ joinedAt: string;
 }
 
@@ -652,6 +661,8 @@ export interface CreateGroupPayload {
   /** Từ khóa do người tạo nhóm nhập. */
   tags?: string[];
   rolesQuota?: GroupRoleQuota[];        // Cơ cấu nhóm và số lượng theo vai trò
+  /** Ẩn danh người tạo nhóm trên giao diện công khai. */
+  leaderAnonymous?: boolean;
 }
 
 /**
@@ -695,6 +706,8 @@ export interface CreateGroupFormData {
   meetingFormat: MeetingFormat;         // Hình thức họp (Online / Offline / Hybrid)
   tags: string[];                       // Thẻ kỹ năng / từ khóa (tùy chọn)
   rolesQuota: GroupRoleQuota[];         // Cơ cấu nhóm và số lượng theo vai trò
+  /** Ẩn danh người tạo nhóm trên group page và chat ban đầu. */
+  leaderAnonymous: boolean;
 }
 
 /**
@@ -739,6 +752,8 @@ export interface GroupMemberDetail {
   isLeader?: boolean;       // Có phải là trưởng nhóm không
   /** Đánh dấu dòng của người đang xem trong dữ liệu xem trước. */
   isCurrentUser?: boolean;
+  /** Thành viên đang ẩn danh trên group detail. */
+  isAnonymous?: boolean;
 }
 
 /**
@@ -798,6 +813,8 @@ export interface GroupApplication {
   id: number;                                     // ID đơn (applications.id)
   groupId: number;                                // ID nhóm nhận đơn
   applicant: UserSummary & { email: string | null }; // Thông tin ứng viên (kèm email liên hệ)
+  /** Ứng viên chọn ẩn danh với trưởng nhóm hay không. */
+  applicantAnonymous: boolean;
   statement: string;                              // Lời giới thiệu / nguyện vọng của ứng viên
   status: ApplicationStatusCode;                  // Trạng thái đơn
   createdAt: string;                              // Thời điểm nộp đơn (ISO-8601)
@@ -815,6 +832,8 @@ export interface ApplyGroupPayload {
   contactPhone?: string;        // Số điện thoại liên hệ
   githubUrl?: string;           // Link GitHub
   portfolioUrl?: string;        // Link Portfolio
+  /** Hiển thị danh tính thật trên đơn hay giữ ẩn danh. */
+  applicantAnonymous?: boolean;
 }
 
 /**
@@ -1082,6 +1101,46 @@ export interface AppNotification {
   actorName?: string;         // Người thực hiện hành động
   isRead: boolean;            // Trạng thái đã đọc hay chưa
   createdAt: string;          // Thời gian tạo (ISO-8601)
+}
+
+/** Hội thoại nhắn tin nội bộ giữa ứng viên và người tạo nhóm. */
+export interface ConversationSummary {
+  /** ID cuộc trò chuyện. */
+  id: number;
+  /** ID nhóm liên quan. */
+  groupId: number;
+  /** Tên nhóm liên quan. */
+  groupTitle: string;
+  /** Tên người còn lại theo quyền riêng tư của người xem. */
+  otherParticipantName: string;
+  /** Người còn lại đang được hiển thị ẩn danh. */
+  otherParticipantAnonymous: boolean;
+  /** Tin nhắn gần nhất. */
+  lastMessage: ChatMessage | null;
+  /** Thời điểm hội thoại cập nhật. */
+  updatedAt: string | null;
+  /** Đây là phòng chat chung của nhóm hay chat application 1-1. */
+  groupChat: boolean;
+  /** Số thành viên chính thức trong phòng chat chung. */
+  participantCount: number;
+}
+
+/** Một tin nhắn trong cuộc trò chuyện nội bộ. */
+export interface ChatMessage {
+  /** ID tin nhắn. */
+  id: number;
+  /** ID cuộc trò chuyện. */
+  conversationId: number;
+  /** ID người gửi. */
+  senderId: number;
+  /** Tên người gửi được phép hiển thị. */
+  senderName: string;
+  /** Nội dung tin nhắn. */
+  content: string;
+  /** Tin hệ thống được tạo tự động khi thành viên được duyệt. */
+  systemMessage: boolean;
+  /** Thời điểm gửi. */
+  createdAt: string | null;
 }
 
 /** Dữ liệu thông báo từ API, hỗ trợ tên trường cũ `read` khi backend chưa cập nhật. */

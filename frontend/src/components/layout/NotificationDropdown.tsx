@@ -196,7 +196,7 @@ export default function NotificationDropdown() {
         <div
           role="dialog"
           aria-label={copy.title}
-          className="motion-popover absolute right-0 mt-2 w-[calc(100vw-24px)] sm:w-96 max-w-[420px] rounded-2xl bg-[var(--surface)] border border-[var(--border-strong)] shadow-[var(--shadow-level-3)] z-50 overflow-hidden flex flex-col max-h-[85vh] sm:max-h-[580px]"
+          className="motion-popover fixed left-3 right-3 top-[4.25rem] w-auto max-w-none rounded-2xl bg-[var(--surface)] border border-[var(--border-strong)] shadow-[var(--shadow-level-3)] z-50 overflow-hidden flex flex-col h-[min(75dvh,580px)] sm:absolute sm:left-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-96 sm:max-w-[420px] sm:h-auto sm:max-h-[580px]"
         >
           {/* 1. Header */}
           <div className="p-3.5 sm:p-4 border-b border-[var(--border)] bg-[var(--surface)]/95 backdrop-blur-xs flex items-center justify-between gap-3">

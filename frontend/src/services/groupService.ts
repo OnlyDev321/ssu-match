@@ -14,6 +14,8 @@ const toCard = (group: GroupSummaryResponse): GroupCardData => ({
   leaderId: group.leader.id,
   leaderAvatarUrl: group.leader.avatarUrl ?? undefined,
   leaderMajor: group.leader.department || "",
+  leaderAnonymous: group.postAnonymous !== false,
+  postAnonymous: group.postAnonymous !== false,
   memberCount: group.memberCount,
   maxMembers: group.maxMembers,
   status: group.status,
@@ -41,6 +43,7 @@ const toDetail = (group: GroupDetailResponse): GroupDetailData => {
     avatarUrl: member.avatarUrl ?? undefined,
     isLeader: member.role === "LEADER",
     isCurrentUser: member.userId === userId,
+    isAnonymous: member.anonymous,
   })),
 };
 };
@@ -58,6 +61,14 @@ export async function fetchGroups(params: GroupFilterParams = {}): Promise<Sprin
 
 export async function fetchGroupDetail(id: string | number): Promise<GroupDetailData> {
   return toDetail(await apiRequest<GroupDetailResponse>(`/groups/${id}`));
+}
+
+/** Cập nhật lựa chọn hiển thị danh tính của chính thành viên hiện tại. */
+export async function updateMyGroupIdentity(groupId: string | number, anonymous: boolean): Promise<void> {
+  return apiRequest<void>(`/groups/${groupId}/members/me/privacy`, {
+    method: "PATCH",
+    body: JSON.stringify({ anonymous }),
+  });
 }
 
 export async function fetchAvailableYears(): Promise<number[]> {
@@ -80,6 +91,7 @@ export async function createGroup(payload: CreateGroupPayload): Promise<GroupDet
       tags: payload.tags,
       maxMembers: payload.maxMembers,
       rolesQuota: payload.rolesQuota,
+      leaderAnonymous: payload.leaderAnonymous ?? true,
       contactEmail: payload.contactEmail,
       contactPhone: payload.contactPhone,
     }),

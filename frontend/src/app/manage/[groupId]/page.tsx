@@ -130,9 +130,19 @@ function ManageGroupContent({ groupIdParam }: ManageGroupContentProps) {
         <ScrambleText text={t.manage.backToManage} />
       </Link>
 
-      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)]">
-        <ScrambleText text={t.manage.title} />
-      </h1>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)]">
+          <ScrambleText text={t.manage.title} />
+        </h1>
+        {group && (
+          <Link
+            href={`/groups/${group.id}`}
+            className="inline-flex min-h-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+          >
+            <ScrambleText text={t.manage.groupDetailLink} />
+          </Link>
+        )}
+      </div>
 
       {status === "loading" ? (
         <CardSkeletonList count={2} />

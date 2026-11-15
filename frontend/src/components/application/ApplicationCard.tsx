@@ -39,9 +39,10 @@ const ApplicationCard = ({
 }: ApplicationCardProps) => {
   const { t, language } = useLanguageStore();
   const { id, applicant, statement, createdAt } = application;
+  const applicantDisplayName = application.applicantAnonymous ? t.applyModal.anonymousApplicant : applicant.name;
   const viewerStudentId = useAuthStore((state) => state.user?.studentId);
-  const applicantEmail = visibleStudentEmail(applicant.email, applicant.studentId, viewerStudentId);
-  const affiliation = [applicant.faculty, applicant.department].filter(Boolean).join(" · ");
+  const applicantEmail = application.applicantAnonymous ? null : visibleStudentEmail(applicant.email, applicant.studentId, viewerStudentId);
+  const affiliation = application.applicantAnonymous ? "" : [applicant.faculty, applicant.department].filter(Boolean).join(" · ");
   const isBusy = pendingAction !== null;
   const { introduction, role, skills, github, portfolio } = parseStatement(statement);
   const githubHref = github ? externalHref(github) : null;
@@ -51,11 +52,11 @@ const ApplicationCard = ({
     <Card className="min-w-0 space-y-5 p-5 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 items-start gap-3 sm:gap-4">
-          <Avatar src={applicant.avatarUrl ?? undefined} name={applicant.name} size="lg" className="shrink-0" />
+          <Avatar src={application.applicantAnonymous ? undefined : applicant.avatarUrl ?? undefined} name={applicantDisplayName} size="lg" className="shrink-0" />
           <div className="min-w-0 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="min-w-0 break-words text-lg font-semibold tracking-tight text-[var(--text-primary)]">
-                {applicant.name}
+                {applicantDisplayName}
               </h3>
               {applicant.academicYear && (
                 <Badge variant="primary" size="sm">
@@ -64,7 +65,7 @@ const ApplicationCard = ({
               )}
             </div>
             <p className="break-words text-xs leading-relaxed text-[var(--text-secondary)]">
-              {visibleStudentId(applicant.studentId, viewerStudentId)}
+              {application.applicantAnonymous ? "" : visibleStudentId(applicant.studentId, viewerStudentId)}
               {affiliation && ` · ${affiliation}`}
             </p>
             {applicantEmail && (

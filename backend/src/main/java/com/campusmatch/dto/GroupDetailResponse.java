@@ -30,6 +30,7 @@ public class GroupDetailResponse {
     private GroupStatus status;
     private List<GroupRoleQuota> rolesQuota;
     private AuthResponse.UserSummary leader;
+    private boolean leaderAnonymous;
     private List<GroupMemberSummaryResponse> members;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

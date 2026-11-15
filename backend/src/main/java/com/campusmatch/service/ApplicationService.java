@@ -9,10 +9,10 @@ import com.campusmatch.repository.ApplicationRepository;
 import com.campusmatch.repository.GroupMemberRepository;
 import com.campusmatch.repository.GroupRepository;
 import com.campusmatch.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -24,7 +24,6 @@ import org.springframework.util.StringUtils;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ApplicationService {
 
     private final ApplicationRepository applicationRepository;
@@ -32,6 +31,31 @@ public class ApplicationService {
     private final GroupMemberRepository groupMemberRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final ConversationService conversationService;
+
+    @Autowired
+    public ApplicationService(ApplicationRepository applicationRepository,
+                               GroupRepository groupRepository,
+                               GroupMemberRepository groupMemberRepository,
+                               UserRepository userRepository,
+                               NotificationService notificationService,
+                               ConversationService conversationService) {
+        this.applicationRepository = applicationRepository;
+        this.groupRepository = groupRepository;
+        this.groupMemberRepository = groupMemberRepository;
+        this.userRepository = userRepository;
+        this.notificationService = notificationService;
+        this.conversationService = conversationService;
+    }
+
+    /** Tương thích với các test/unit caller cũ chưa cần tính năng chat. */
+    public ApplicationService(ApplicationRepository applicationRepository,
+                               GroupRepository groupRepository,
+                               GroupMemberRepository groupMemberRepository,
+                               UserRepository userRepository,
+                               NotificationService notificationService) {
+        this(applicationRepository, groupRepository, groupMemberRepository, userRepository, notificationService, null);
+    }
 
     /**
      * Sinh viên nộp đơn xin gia nhập nhóm
@@ -81,10 +105,15 @@ public class ApplicationService {
                 log.info("Đơn cũ của sinh viên {} bị REJECTED. Cập nhật lại trạng thái thành PENDING.", studentId);
                 existing.setStatement(request.getStatement().trim());
                 existing.setDesiredRole(desiredRole);
+                existing.setApplicantAnonymous(request.isApplicantAnonymous());
                 existing.setStatus(ApplicationStatus.PENDING);
                 existing.setUpdatedAt(LocalDateTime.now());
                 Application updated = applicationRepository.save(existing);
-                return mapToResponse(updated);
+                if (conversationService != null) {
+                    Conversation conversation = conversationService.getOrCreateForApplication(groupId, applicant.getId(), request.isApplicantAnonymous());
+                    conversationService.createMessage(conversation, applicant, request.getStatement());
+                }
+                return mapToResponse(updated, applicant);
             }
         }
 
@@ -92,12 +121,17 @@ public class ApplicationService {
         Application application = Application.builder()
                 .group(group)
                 .applicant(applicant)
+                .applicantAnonymous(request.isApplicantAnonymous())
                 .statement(request.getStatement().trim())
                 .desiredRole(desiredRole)
                 .status(ApplicationStatus.PENDING)
                 .build();
 
         Application saved = applicationRepository.save(application);
+        if (conversationService != null) {
+            Conversation conversation = conversationService.getOrCreateForApplication(groupId, applicant.getId(), request.isApplicantAnonymous());
+            conversationService.createMessage(conversation, applicant, request.getStatement());
+        }
         log.info("Đã gửi đơn ứng tuyển thành công. Mã đơn: {}", saved.getId());
 
         // Gửi thông báo cho Leader nhóm
@@ -111,7 +145,7 @@ public class ApplicationService {
                 group
         );
 
-        return mapToResponse(saved);
+        return mapToResponse(saved, applicant);
     }
 
     /**
@@ -133,7 +167,7 @@ public class ApplicationService {
 
         List<Application> applications = applicationRepository.findByGroupIdOrderByCreatedAtDesc(groupId);
         return applications.stream()
-                .map(this::mapToResponse)
+                .map(application -> mapToResponse(application, user))
                 .collect(Collectors.toList());
     }
 
@@ -143,7 +177,7 @@ public class ApplicationService {
         User user = userRepository.findByStudentId(studentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hồ sơ sinh viên"));
         return applicationRepository.findByApplicantId(user.getId()).stream()
-                .map(this::mapToResponse)
+                .map(application -> mapToResponse(application, user))
                 .collect(Collectors.toList());
     }
 
@@ -170,7 +204,7 @@ public class ApplicationService {
 
         // 2. Nếu đơn đã ACCEPTED trước đó thì trả về luôn
         if (application.getStatus() == ApplicationStatus.ACCEPTED) {
-            return mapToResponse(application);
+            return mapToResponse(application, leader);
         }
         if (application.getStatus() != ApplicationStatus.PENDING) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ có thể duyệt đơn đang chờ xử lý");
@@ -198,6 +232,7 @@ public class ApplicationService {
                     .group(group)
                     .user(applicant)
                     .role(GroupRole.MEMBER)
+                    .memberAnonymous(application.isApplicantAnonymous())
                     .joinedAt(LocalDateTime.now())
                     .build();
             groupMemberRepository.save(newMember);
@@ -214,6 +249,10 @@ public class ApplicationService {
         application.setStatus(ApplicationStatus.ACCEPTED);
         application.setUpdatedAt(LocalDateTime.now());
         Application saved = applicationRepository.save(application);
+
+        if (conversationService != null) {
+            conversationService.addSystemMessage(group.getId(), "Một thành viên mới đã tham gia nhóm.");
+        }
 
         // 6. Nếu sau khi thêm nhóm đã đủ người -> tự động đổi trạng thái nhóm thành COMPLETED
         if (currentMembers >= group.getMaxMembers()) {
@@ -244,7 +283,7 @@ public class ApplicationService {
                 group
         );
 
-        return mapToResponse(saved);
+        return mapToResponse(saved, leader);
     }
 
     /**
@@ -287,7 +326,7 @@ public class ApplicationService {
                 group
         );
 
-        return mapToResponse(saved);
+        return mapToResponse(saved, leader);
     }
 
     /**
@@ -318,18 +357,19 @@ public class ApplicationService {
         log.info("Đã xóa đơn ứng tuyển ID: {}", applicationId);
     }
 
-    private ApplicationResponse mapToResponse(Application app) {
+    private ApplicationResponse mapToResponse(Application app, User viewer) {
         User u = app.getApplicant();
+        boolean maskApplicant = app.isApplicantAnonymous() && (viewer == null || !u.getId().equals(viewer.getId()));
         AuthResponse.UserSummary userSummary = AuthResponse.UserSummary.builder()
                 .id(u.getId())
-                .studentId(StudentIdPrivacy.visibleStudentId(u.getStudentId()))
-                .name(u.getName())
-                .department(u.getDepartment())
-                .faculty(u.getFaculty())
-                .email(StudentIdPrivacy.visibleEmail(u.getEmail(), u.getStudentId()))
-                .academicYear(u.getAcademicYear())
-                .phoneNumber(u.getPhoneNumber())
-                .avatarUrl(u.getAvatarUrl())
+                .studentId(maskApplicant ? "***" : StudentIdPrivacy.visibleStudentId(u.getStudentId()))
+                .name(maskApplicant ? "Ứng viên ẩn danh" : u.getName())
+                .department(maskApplicant ? null : u.getDepartment())
+                .faculty(maskApplicant ? null : u.getFaculty())
+                .email(maskApplicant ? null : StudentIdPrivacy.visibleEmail(u.getEmail(), u.getStudentId()))
+                .academicYear(maskApplicant ? null : u.getAcademicYear())
+                .phoneNumber(maskApplicant ? null : u.getPhoneNumber())
+                .avatarUrl(maskApplicant ? null : u.getAvatarUrl())
                 .role(u.getRole())
                 .build();
 
@@ -337,6 +377,7 @@ public class ApplicationService {
                 .id(app.getId())
                 .groupId(app.getGroup().getId())
                 .applicant(userSummary)
+                .applicantAnonymous(app.isApplicantAnonymous())
                 .statement(app.getStatement())
                 .status(app.getStatus())
                 .createdAt(app.getCreatedAt())

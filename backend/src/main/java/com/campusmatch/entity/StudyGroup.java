@@ -33,6 +33,15 @@ public class StudyGroup {
     @JoinColumn(name = "leader_id", nullable = false)
     private User leader;
 
+    @Column(name = "leader_anonymous", nullable = false, columnDefinition = "boolean not null default false")
+    @Builder.Default
+    private boolean leaderAnonymous = false;
+
+    /** Immutable privacy choice for the public group listing, captured at creation. */
+    @Column(name = "post_anonymous", nullable = false, columnDefinition = "boolean not null default false", updatable = false)
+    @Builder.Default
+    private boolean postAnonymous = false;
+
     // Tiêu đề bài đăng tuyển nhóm
     @Column(nullable = false, length = 150)
     private String title;

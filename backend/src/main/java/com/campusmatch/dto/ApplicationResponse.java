@@ -15,6 +15,7 @@ public class ApplicationResponse {
     private Long id;
     private Long groupId;
     private AuthResponse.UserSummary applicant;
+    private boolean applicantAnonymous;
     private String statement;
     private ApplicationStatus status;
     private LocalDateTime createdAt;

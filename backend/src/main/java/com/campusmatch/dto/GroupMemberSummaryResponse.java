@@ -17,6 +17,7 @@ public class GroupMemberSummaryResponse {
     private String faculty;
     private String avatarUrl;
     private String role; // "LEADER" or "MEMBER"
+    private boolean anonymous;
     private LocalDateTime joinedAt;
 }
 
