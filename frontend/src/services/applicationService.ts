@@ -23,21 +23,22 @@ export async function getMyApplications(): Promise<GroupApplication[]> {
 
 export async function acceptApplication(applicationId: number): Promise<GroupApplication> {
   const application = await apiRequest<GroupApplication>(`/applications/${applicationId}/accept`, { method: "PUT" });
-  invalidateCurrentUserApplicationData();
+  invalidateCurrentUserApplicationData(application.groupId);
   return application;
 }
 
 export async function rejectApplication(applicationId: number): Promise<GroupApplication> {
   const application = await apiRequest<GroupApplication>(`/applications/${applicationId}/reject`, { method: "PUT" });
-  invalidateCurrentUserApplicationData();
+  invalidateCurrentUserApplicationData(application.groupId);
   return application;
 }
 
-function invalidateCurrentUserApplicationData() {
+function invalidateCurrentUserApplicationData(groupId?: number) {
   const userId = useAuthStore.getState().userId;
   if (userId === null) return;
   invalidateCachedQueries(`private:${userId}:applications`);
   invalidateCachedQueries(`private:${userId}:groups`);
   invalidateCachedQueries("public:groups:");
   invalidateCachedQueries("public:statistics");
+  if (groupId !== undefined) invalidateCachedQueries(`group-detail:${groupId}:`);
 }

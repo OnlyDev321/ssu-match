@@ -9,9 +9,11 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface GroupRepository extends JpaRepository<StudyGroup, Long>, JpaSpecificationExecutor<StudyGroup> {
@@ -19,6 +21,9 @@ public interface GroupRepository extends JpaRepository<StudyGroup, Long>, JpaSpe
     @Override
     @EntityGraph(attributePaths = "leader")
     Page<StudyGroup> findAll(Specification<StudyGroup> spec, Pageable pageable);
+
+    @Query("SELECT g FROM StudyGroup g JOIN FETCH g.leader WHERE g.id = :groupId")
+    Optional<StudyGroup> findByIdWithLeader(@Param("groupId") Long groupId);
 
     List<StudyGroup> findByLeaderId(Long leaderId);
 

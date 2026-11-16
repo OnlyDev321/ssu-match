@@ -73,12 +73,18 @@ export async function fetchGroupDetail(id: string | number): Promise<GroupDetail
   return toDetail(await apiRequest<GroupDetailResponse>(`/groups/${id}`));
 }
 
+export function getGroupDetailCacheKey(id: string | number, userId: number | string | null): string {
+  const viewerKey = userId === null ? "anonymous" : `user:${userId}`;
+  return `group-detail:${id}:${viewerKey}`;
+}
+
 /** Cập nhật lựa chọn hiển thị danh tính của chính thành viên hiện tại. */
 export async function updateMyGroupIdentity(groupId: string | number, anonymous: boolean): Promise<void> {
   await apiRequest<void>(`/groups/${groupId}/members/me/privacy`, {
     method: "PATCH",
     body: JSON.stringify({ anonymous }),
   });
+  invalidateGroupDetail(groupId);
   invalidateCurrentUserGroups();
 }
 
@@ -117,6 +123,7 @@ export async function updateGroup(groupId: number, payload: UpdateGroupPayload):
     method: "PUT",
     body: JSON.stringify(payload),
   });
+  invalidateGroupDetail(groupId);
   invalidatePublicGroupData();
   invalidateCurrentUserGroups();
   return group;
@@ -124,6 +131,7 @@ export async function updateGroup(groupId: number, payload: UpdateGroupPayload):
 
 export async function deleteGroup(groupId: number | string): Promise<void> {
   await apiRequest<void>(`/groups/${groupId}`, { method: "DELETE" });
+  invalidateGroupDetail(groupId);
   invalidatePublicGroupData();
   invalidateCurrentUserGroups();
 }
@@ -137,4 +145,8 @@ function invalidatePublicGroupData() {
 function invalidateCurrentUserGroups() {
   const userId = useAuthStore.getState().userId;
   if (userId !== null) invalidateCachedQueries(`private:${userId}:groups`);
+}
+
+function invalidateGroupDetail(groupId: string | number) {
+  invalidateCachedQueries(`group-detail:${groupId}:`);
 }

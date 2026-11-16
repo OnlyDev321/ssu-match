@@ -21,6 +21,10 @@ public interface GroupMemberRepository extends JpaRepository<GroupMember, GroupM
 
     List<GroupMember> findByGroupId(Long groupId);
 
+    @EntityGraph(attributePaths = "user")
+    @Query("SELECT gm FROM GroupMember gm WHERE gm.group.id = :groupId")
+    List<GroupMember> findDetailMembersByGroupId(@Param("groupId") Long groupId);
+
     @EntityGraph(attributePaths = {"group", "group.leader"})
     List<GroupMember> findByUserId(Long userId);
 

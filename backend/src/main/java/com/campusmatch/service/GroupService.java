@@ -353,7 +353,7 @@ public class GroupService {
      */
     @Transactional(readOnly = true)
     public GroupDetailResponse getGroupDetail(Long groupId) {
-        StudyGroup group = groupRepository.findById(groupId)
+        StudyGroup group = groupRepository.findByIdWithLeader(groupId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy nhóm với ID: " + groupId));
 
         return mapToDetailResponse(group);
@@ -438,7 +438,7 @@ public class GroupService {
     }
 
     private GroupDetailResponse mapToDetailResponse(StudyGroup group) {
-        List<GroupMember> members = groupMemberRepository.findByGroupId(group.getId());
+        List<GroupMember> members = groupMemberRepository.findDetailMembersByGroupId(group.getId());
         List<GroupMemberSummaryResponse> memberSummaries = members.stream()
                 .map(this::mapToMemberSummaryResponse)
                 .collect(Collectors.toList());

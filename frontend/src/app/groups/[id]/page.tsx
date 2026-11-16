@@ -28,9 +28,9 @@ import { Card, Badge, Button, Avatar, RoleQuota } from "@/design-system";
 import ApplyModal from "@/components/application/ApplyModal";
 import type { GroupTranslationState } from "@/lib/types";
 import TranslateButton from "@/components/common/TranslateButton";
-import { fetchGroupDetail, updateMyGroupIdentity } from "@/services/groupService";
+import { fetchGroupDetail, getGroupDetailCacheKey, updateMyGroupIdentity } from "@/services/groupService";
 import { getMyApplications } from "@/services/applicationService";
-import { useServiceData } from "@/lib/hooks";
+import { useCachedServiceData } from "@/lib/hooks";
 import { CardSkeletonList, ErrorState } from "@/components/common/AsyncState";
 import { formatMessage, maskStudentId } from "@/lib/format";
 import { useLanguageStore } from "@/stores/languageStore";
@@ -41,13 +41,16 @@ export default function GroupDetailPage({ params }: GroupDetailPageProps) {
   const { id } = use(params);
   const { t, language } = useLanguageStore();
   const copy = t.groupDetail;
-  const { isLoggedIn, openLoginModal } = useAuthStore();
+  const { isLoggedIn, userId, openLoginModal } = useAuthStore();
 
-  // Dữ liệu xem trước có thể cập nhật trong phiên dev; không giữ lại kết quả null cũ.
   const loadGroup = useCallback(() => fetchGroupDetail(id), [id]);
-  const { status, data: group, errorCode, reload } = useServiceData(loadGroup, true);
+  const { status, data: group, errorCode, reload } = useCachedServiceData(
+    getGroupDetailCacheKey(id, userId), loadGroup, true, 30_000,
+  );
   const loadMyApplications = useCallback(() => getMyApplications(), []);
-  const { status: applicationStatus, data: myApplications, reload: reloadMyApplications } = useServiceData(loadMyApplications, isLoggedIn);
+  const { status: applicationStatus, data: myApplications, reload: reloadMyApplications } = useCachedServiceData(
+    `private:${userId}:applications`, loadMyApplications, isLoggedIn && userId !== null, 30_000,
+  );
 
   // Modal and Interactive States
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
