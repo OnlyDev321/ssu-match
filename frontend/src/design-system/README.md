@@ -1,6 +1,6 @@
-# CampusMatch UI Design System (v2.0)
+# SSUMatch UI Design System (v2.0)
 
-Hệ thống Design System chung chuẩn hóa cho ứng dụng **CampusMatch** dựa trên đặc tả tại [DESIGN.md](../DESIGN.md).
+Hệ thống Design System chung chuẩn hóa cho ứng dụng **SSUMatch** dựa trên đặc tả tại [DESIGN.md](../DESIGN.md).
 
 Hỗ trợ 2 theme:
 - ☀️ **Light Theme:** Giao diện SaaS hiện đại, sạch sẽ (`#FAF8FF`, bề mặt `#FFFFFF`, viền `#E2E8F0`, điểm nhấn xanh `#004AC6` / `#2563EB`, font Inter, radius 8px-12px).

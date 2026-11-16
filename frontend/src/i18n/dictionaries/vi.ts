@@ -145,7 +145,7 @@ export const vi: TranslationDict = {
   },
   landing: {
     statsFullGroups: "Nhóm đã đủ thành viên",
-    statsTitle: "Số liệu CampusMatch",
+    statsTitle: "Số liệu SSUMatch",
     statsLoading: "Đang tải số liệu hệ thống…",
     statsUnavailable:
       "Tạm thời chưa tải được số liệu. Hệ thống sẽ tự động cập nhật lại.",
@@ -155,14 +155,14 @@ export const vi: TranslationDict = {
     heroTitleHighlight: "Xây dựng đội ngũ hoàn hảo",
     heroTitleSuffix: "cho đồ án & học tập.",
     heroSubtitle:
-      "CampusMatch kết nối sinh viên ĐH Soongsil qua cổng đăng nhập u-SAINT SSO. 100% sinh viên thực tế, không tài khoản ảo, hợp tác học tập minh bạch.",
+      "SSUMatch kết nối sinh viên ĐH Soongsil qua cổng đăng nhập u-SAINT SSO. 100% sinh viên thực tế, không tài khoản ảo, hợp tác học tập minh bạch.",
     startBtn: "Bắt đầu với u-SAINT",
     browseBtn: "Xem nhóm đang tuyển",
     seeGroupsBtn: "Khám phá các nhóm học tập",
     trustBadge1: "100% Sinh viên Soongsil",
     trustBadge2: "Không lưu trữ mật khẩu",
     trustBadge3: "Khớp nối ngành & kỹ năng",
-    coreFeaturesTitle: "Vì sao sinh viên Soongsil tin chọn CampusMatch?",
+    coreFeaturesTitle: "Vì sao sinh viên Soongsil tin chọn SSUMatch?",
     coreFeaturesSubtitle:
       "Chấm dứt nỗi lo bùng nhóm, tài khoản ẩn danh, lệch kỹ năng để bạn an tâm tập trung học tập.",
     feature1Title: "100% Xác thực u-SAINT SSO",
@@ -199,7 +199,7 @@ export const vi: TranslationDict = {
     securityGuaranteeTitle:
       "Nguyên tắc bảo mật không lưu mật khẩu (Zero Password Retention)",
     securityGuaranteeDesc:
-      "Mật khẩu của bạn chỉ dùng để xác thực tức thời với cổng trường và tuyệt đối không bao giờ được lưu trong cơ sở dữ liệu CampusMatch.",
+      "Mật khẩu của bạn chỉ dùng để xác thực tức thời với cổng trường và tuyệt đối không bao giờ được lưu trong cơ sở dữ liệu SSUMatch.",
     errorMissing: "Vui lòng nhập đầy đủ mã sinh viên và mật khẩu.",
     errorInvalidCredentials: "Sai mã số sinh viên hoặc mật khẩu u-SAINT.",
     errorServer:
@@ -408,7 +408,7 @@ export const vi: TranslationDict = {
     previewDescription:
       "Mô tả mục tiêu, kỹ năng mong muốn và yêu cầu để xem trước nhóm tại đây.",
     verifiedStudent: "Sinh viên đã xác thực",
-    creatorTipsTitle: "Gợi ý tạo nhóm CampusMatch",
+    creatorTipsTitle: "Gợi ý tạo nhóm SSUMatch",
     creatorTipCourse:
       "Nhóm ghi rõ mã môn học thu hút đơn ứng tuyển nhanh gấp 3 lần.",
     creatorTipSchedule: "Ghi rõ thời gian họp mong muốn trong phần mô tả.",
@@ -444,7 +444,7 @@ export const vi: TranslationDict = {
     identityPublicDescription:
       "Hiển thị tên thật và hồ sơ đã xác thực trên trang nhóm.",
     identityPrivacyNote:
-      "Bạn vẫn có thể nhận đơn ứng tuyển và trò chuyện trong CampusMatch mà không cần chia sẻ email hoặc số điện thoại.",
+      "Bạn vẫn có thể nhận đơn ứng tuyển và trò chuyện trong SSUMatch mà không cần chia sẻ email hoặc số điện thoại.",
     contactDescription:
       "Tùy chọn. Chỉ thông tin bạn đánh dấu công khai mới xuất hiện trên trang nhóm. Email trường sẽ không tự động được hiển thị.",
     contactEmailLabel: "Email liên hệ (tùy chọn)",
@@ -515,7 +515,7 @@ export const vi: TranslationDict = {
     cancelBtn: "Hủy bỏ",
     successTitle: "Tạo nhóm thành công!",
     successDesc:
-      "Nhóm của bạn đã được đăng lên danh mục CampusMatch. Bạn có thể duyệt đơn ứng tuyển trong trang Quản lý.",
+      "Nhóm của bạn đã được đăng lên danh mục SSUMatch. Bạn có thể duyệt đơn ứng tuyển trong trang Quản lý.",
     viewGroupBtn: "Xem chi tiết nhóm",
     goToManageBtn: "Đi tới danh sách nhóm",
     errors: {

@@ -16,7 +16,7 @@ public class HealthController {
     public ResponseEntity<Map<String, Object>> healthCheck() {
         return ResponseEntity.ok(Map.of(
             "status", "UP",
-            "service", "CampusMatch Backend API",
+            "service", "SSUMatch Backend API",
             "database", "PostgreSQL (Neon Connected)",
             "timestamp", LocalDateTime.now().toString()
         ));

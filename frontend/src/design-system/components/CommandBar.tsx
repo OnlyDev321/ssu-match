@@ -184,7 +184,7 @@ function CommandBarContent({ isOpen, onClose, items }: CommandBarProps) {
             <span>↑↓ Navigate</span>
             <span>↵ Select</span>
           </div>
-          <span>CampusMatch Quick Search</span>
+          <span>SSUMatch Quick Search</span>
         </div>
       </div>
     </div>

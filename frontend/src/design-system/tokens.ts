@@ -1,5 +1,5 @@
 /**
- * CampusMatch Design System Tokens
+ * SSUMatch Design System Tokens
  * Source of truth mapped directly from DESIGN.md
  */
 

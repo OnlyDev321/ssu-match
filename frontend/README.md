@@ -1,6 +1,6 @@
-# CampusMatch frontend
+# SSUMatch frontend
 
-Ứng dụng Next.js cho CampusMatch. Chạy các lệnh sau trong thư mục `frontend`:
+Ứng dụng Next.js cho SSUMatch. Chạy các lệnh sau trong thư mục `frontend`:
 
 ```bash
 npm install

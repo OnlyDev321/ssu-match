@@ -2,7 +2,7 @@ import Image from "next/image";
 import type { BrandLogoProps } from "@/lib/types";
 
 /**
- * Logo thương hiệu SsuMatch dùng chung cho Header, màn đăng nhập/đăng ký.
+ * Logo thương hiệu SSUMatch dùng chung cho Header, màn đăng nhập/đăng ký.
  * Khung vuông cố định kích thước; ảnh được co giãn theo object-contain nên không bị méo.
  */
 export function BrandLogo({ size = 32, priority = false, className = "" }: BrandLogoProps) {
@@ -13,7 +13,7 @@ export function BrandLogo({ size = 32, priority = false, className = "" }: Brand
     >
       <Image
         src="/images/ssumatch-logo.png"
-        alt="SsuMatch"
+        alt="SSUMatch"
         fill
         sizes={`${size}px`}
         priority={priority}

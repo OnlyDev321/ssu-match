@@ -50,7 +50,7 @@ export default function Header() {
             >
               <BrandLogo size={32} priority />
               <span className="text-base font-semibold tracking-tight hidden min-[440px]:inline">
-                Campus<span className="text-(--primary)">Match</span>
+                SSU<span className="text-(--primary)">Match</span>
               </span>
             </Link>
           </div>

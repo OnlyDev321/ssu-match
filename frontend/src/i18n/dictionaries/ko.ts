@@ -141,7 +141,7 @@ export const ko: TranslationDict = {
   },
   landing: {
     statsFullGroups: "정원이 채워진 그룹",
-    statsTitle: "CampusMatch 이용 현황",
+    statsTitle: "SSUMatch 이용 현황",
     statsLoading: "이용 현황을 불러오는 중입니다…",
     statsUnavailable:
       "현재 통계를 불러올 수 없습니다. 잠시 후 자동으로 갱신됩니다.",
@@ -151,14 +151,14 @@ export const ko: TranslationDict = {
     heroTitleHighlight: "완벽한 스터디 & 프로젝트 팀",
     heroTitleSuffix: "을 완성하세요.",
     heroSubtitle:
-      "CampusMatch는 숭실대학교 u-SAINT 포털 단일 인증(SSO)으로 100% 신원이 검증된 학생들만 참여하는 캠퍼스 전용 팀원 매칭 플랫폼입니다.",
+      "SSUMatch는 숭실대학교 u-SAINT 포털 단일 인증(SSO)으로 100% 신원이 검증된 학생들만 참여하는 캠퍼스 전용 팀원 매칭 플랫폼입니다.",
     startBtn: "숭실대 u-SAINT으로 시작하기",
     browseBtn: "모집 중인 그룹 미리보기",
     seeGroupsBtn: "스터디 & 프로젝트 둘러보기",
     trustBadge1: "100% 숭실대 재학생 인증",
     trustBadge2: "비밀번호 무저장 원칙",
     trustBadge3: "학과 & 전공 맞춤 매칭",
-    coreFeaturesTitle: "왜 숭실대 학생들은 CampusMatch를 선택할까요?",
+    coreFeaturesTitle: "왜 숭실대 학생들은 SSUMatch를 선택할까요?",
     coreFeaturesSubtitle:
       "익명 커뮤니티의 잠수, 무임승차, 허위 프로필 문제를 원천 차단하고 학업에만 집중할 수 있는 환경을 만듭니다.",
     feature1Title: "100% u-SAINT SSO 인증",
@@ -194,7 +194,7 @@ export const ko: TranslationDict = {
     submittingBtn: "u-SAINT 포털 인증 중...",
     securityGuaranteeTitle: "100% 무저장 보안 원칙 (Zero Password Retention)",
     securityGuaranteeDesc:
-      "입력하신 비밀번호는 숭실대학교 포털 실시간 인증에만 일회성으로 사용되며, CampusMatch 데이터베이스에 절대 저장되지 않습니다.",
+      "입력하신 비밀번호는 숭실대학교 포털 실시간 인증에만 일회성으로 사용되며, SSUMatch 데이터베이스에 절대 저장되지 않습니다.",
     errorMissing: "학번과 비밀번호를 모두 입력해주세요.",
     errorInvalidCredentials: "학번 또는 u-SAINT 비밀번호가 올바르지 않습니다.",
     errorServer:
@@ -398,7 +398,7 @@ export const ko: TranslationDict = {
     previewDescription:
       "목표, 필요한 역량과 참여 조건을 입력하면 그룹 미리보기에 표시됩니다.",
     verifiedStudent: "인증된 학생",
-    creatorTipsTitle: "CampusMatch 그룹 개설 팁",
+    creatorTipsTitle: "SSUMatch 그룹 개설 팁",
     creatorTipCourse:
       "과목 코드를 명시하면 지원자를 3배 더 빠르게 모집할 수 있습니다.",
     creatorTipSchedule: "소개글에 희망 모임 시간을 구체적으로 작성하세요.",
@@ -433,7 +433,7 @@ export const ko: TranslationDict = {
     identityPublicDescription:
       "인증된 이름과 프로필을 그룹 페이지에 표시합니다.",
     identityPrivacyNote:
-      "이메일이나 전화번호를 공유하지 않고도 CampusMatch에서 지원서를 받고 채팅할 수 있습니다.",
+      "이메일이나 전화번호를 공유하지 않고도 SSUMatch에서 지원서를 받고 채팅할 수 있습니다.",
     contactDescription:
       "선택 사항입니다. 공개에 동의한 연락처만 그룹 페이지에 표시됩니다. 학교 이메일은 자동으로 공개되지 않습니다.",
     contactEmailLabel: "연락처 이메일 (선택)",
@@ -501,7 +501,7 @@ export const ko: TranslationDict = {
     cancelBtn: "취소",
     successTitle: "그룹이 성공적으로 개설되었습니다!",
     successDesc:
-      "스터디 그룹이 CampusMatch 디렉토리에 등록되었습니다. 이제 학우들의 지원서를 검토할 수 있습니다.",
+      "스터디 그룹이 SSUMatch 디렉토리에 등록되었습니다. 이제 학우들의 지원서를 검토할 수 있습니다.",
     viewGroupBtn: "그룹 상세 보기",
     goToManageBtn: "그룹 목록으로 이동",
     errors: {

@@ -138,7 +138,7 @@ export const en = {
   // Landing Page
   landing: {
     statsFullGroups: "Groups Fully Staffed",
-    statsTitle: "CampusMatch Statistics",
+    statsTitle: "SSUMatch Statistics",
     statsLoading: "Loading platform statistics…",
     statsUnavailable:
       "Statistics are temporarily unavailable. They will refresh automatically.",
@@ -148,14 +148,14 @@ export const en = {
     heroTitleHighlight: "Build Ideal Teams",
     heroTitleSuffix: "for Your Study & Projects.",
     heroSubtitle:
-      "CampusMatch connects verified Soongsil University students through official u-SAINT SSO. Zero fake accounts, zero ghosting, 100% genuine academic collaboration.",
+      "SSUMatch connects verified Soongsil University students through official u-SAINT SSO. Zero fake accounts, zero ghosting, 100% genuine academic collaboration.",
     startBtn: "Get Started with u-SAINT",
     browseBtn: "Explore Recruiting Groups",
     seeGroupsBtn: "Browse Studies & Projects",
     trustBadge1: "100% Real Soongsil Students",
     trustBadge2: "Zero Password Retention",
     trustBadge3: "Major & Skill Matchmaking",
-    coreFeaturesTitle: "Why Soongsil Students Choose CampusMatch",
+    coreFeaturesTitle: "Why Soongsil Students Choose SSUMatch",
     coreFeaturesSubtitle:
       "Eliminating anonymous chat ghosting, free-riders, and mismatched skill sets so you can focus entirely on learning.",
     feature1Title: "100% u-SAINT SSO Verified",
@@ -192,7 +192,7 @@ export const en = {
     submittingBtn: "Connecting to u-SAINT...",
     securityGuaranteeTitle: "100% Zero Password Retention Policy",
     securityGuaranteeDesc:
-      "Your password is used strictly for in-flight verification with Soongsil University's portal and is never stored in CampusMatch databases.",
+      "Your password is used strictly for in-flight verification with Soongsil University's portal and is never stored in SSUMatch databases.",
     errorMissing: "Please enter both student ID and password.",
     errorInvalidCredentials: "Invalid student ID or u-SAINT password.",
     errorServer:
@@ -417,7 +417,7 @@ export const en = {
     previewDescription:
       "Describe your goals, preferred skills, and expectations to preview your group here.",
     verifiedStudent: "Verified student",
-    creatorTipsTitle: "CampusMatch Creator Tips",
+    creatorTipsTitle: "SSUMatch Creator Tips",
     creatorTipCourse:
       "Groups with specific course codes attract 3x faster applications.",
     creatorTipSchedule: "Specify preferred meeting times in your description.",
@@ -448,7 +448,7 @@ export const en = {
     identityAnonymousDescription: "Show “Anonymous group creator” and keep your profile private.",
     identityPublic: "Show my profile",
     identityPublicDescription: "Display your verified name and profile on the group page.",
-    identityPrivacyNote: "You can still receive applications and chat in CampusMatch without sharing your email or phone number.",
+    identityPrivacyNote: "You can still receive applications and chat in SSUMatch without sharing your email or phone number.",
     contactDescription:
       "Optional. Contact details appear on the group page only when you explicitly choose to publish them. Your university email is never shown automatically.",
     contactEmailLabel: "Contact email (optional)",
@@ -518,7 +518,7 @@ export const en = {
     cancelBtn: "Cancel",
     successTitle: "Group Created Successfully!",
     successDesc:
-      "Your study group has been published to the CampusMatch directory. Students can now discover and apply to your team.",
+      "Your study group has been published to the SSUMatch directory. Students can now discover and apply to your team.",
     viewGroupBtn: "View Group Details",
     goToManageBtn: "Go to Groups",
     errors: {

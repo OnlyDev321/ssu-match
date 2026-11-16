@@ -3,7 +3,7 @@ server:
 
 spring:
   application:
-    name: campus-match-backend
+    name: ssumatch-backend
 
   datasource:
     url: ${DB_URL}

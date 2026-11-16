@@ -1,4 +1,4 @@
-# CampusMatch — kiến trúc hiện tại
+# SSUMatch — kiến trúc hiện tại
 
 Tài liệu này mô tả **mã nguồn trong repository tại ngày 14/11/2026**, không phải kế hoạch triển khai hay lời khẳng định về môi trường production. Nguồn sự thật của schema hiện là các JPA entity trong `backend/src/main/java/com/campusmatch/entity/` và `backend/src/main/java/com/campusmatch/academic/`; Hibernate dùng `ddl-auto: update`. Repository hiện không có thư mục migration hoặc Flyway/Liquibase.
 

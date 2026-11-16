@@ -17,7 +17,7 @@ export default function Footer() {
         <div className="flex items-center gap-3">
           <BrandLogo size={24} />
           <span className="text-xs text-[var(--text-muted)]">
-            © {new Date().getFullYear()} CampusMatch. University Academic
+            © {new Date().getFullYear()} SSUMatch. University Academic
             Productivity System.
           </span>
         </div>

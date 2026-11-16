@@ -27,9 +27,9 @@ const themeInitScript = `
 `;
 
 export const metadata = {
-  title: "CampusMatch — University Collaboration & Study Groups",
+  title: "SSUMatch — University Collaboration & Study Groups",
   description:
-    "Unified Light and Dark Theme Design System for CampusMatch academic productivity platform.",
+    "Unified Light and Dark Theme Design System for SSUMatch academic productivity platform.",
 };
 
 import LoginModal from "@/components/auth/LoginModal";
@@ -43,7 +43,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <script
-          id="campus-match-theme-init"
+          id="ssumatch-theme-init"
           suppressHydrationWarning
           dangerouslySetInnerHTML={{ __html: themeInitScript }}
         />

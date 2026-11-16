@@ -1,14 +1,14 @@
 ---
-name: CampusMatch UI Design System
-description: Unified Light and Dark Theme Design System for CampusMatch
+name: SSUMatch UI Design System
+description: Unified Light and Dark Theme Design System for SSUMatch
 version: 2.0
 ---
 
-# CampusMatch — Design System
+# SSUMatch — Design System
 
 ## 1. Brand & Style
 
-CampusMatch is a modern academic productivity platform that helps university students discover, organize, and manage study groups and capstone project teams.
+SSUMatch is a modern academic productivity platform that helps university students discover, organize, and manage study groups and capstone project teams.
 
 The design system combines the precision of modern SaaS products such as Linear, Notion, and Vercel with a focused, professional university collaboration experience.
 
@@ -42,7 +42,7 @@ The interface must support **Light Mode and Dark Mode** using one consistent des
 
 ## 2. Theme Architecture
 
-CampusMatch supports two appearance modes:
+SSUMatch supports two appearance modes:
 
 | Mode  | Description                              |
 | ----- | ---------------------------------------- |
@@ -232,7 +232,7 @@ dark:
 
 ## 4. Typography
 
-CampusMatch uses a theme-aware typography system.
+SSUMatch uses a theme-aware typography system.
 
 ### Font Families
 
@@ -434,7 +434,7 @@ dark:
 
 ## 5. Layout & Spacing
 
-CampusMatch uses a responsive, fixed-sidebar and fluid-workspace layout.
+SSUMatch uses a responsive, fixed-sidebar and fluid-workspace layout.
 
 ### 5.1 Application Shell
 
@@ -947,7 +947,7 @@ Used for global search and quick navigation.
 
 ## 10. Interaction & Motion
 
-CampusMatch uses subtle, purposeful interactions.
+SSUMatch uses subtle, purposeful interactions.
 
 ### Interaction Principles
 
@@ -1012,7 +1012,7 @@ When creating or modifying a component:
 
 ### Final Design Principle
 
-**CampusMatch must feel like one cohesive product in both Light and Dark Mode.**
+**SSUMatch must feel like one cohesive product in both Light and Dark Mode.**
 
 Light Mode emphasizes clarity, whitespace, and approachable SaaS aesthetics. Dark Mode emphasizes focus, tonal depth, and technical precision.
 

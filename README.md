@@ -1,7 +1,7 @@
 <div align="center">
-  <img src="frontend/public/images/ssumatch-logo.png" alt="SsuMatch" width="160" />
+  <img src="frontend/public/images/ssumatch-logo.png" alt="SSUMatch" width="160" />
 
-# SsuMatch
+# SSUMatch
 
 ### Study Groups & Project Teams for Soongsil University
 

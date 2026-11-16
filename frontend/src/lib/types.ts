@@ -47,7 +47,7 @@ export interface ThemeToggleProps {
 }
 
 /* ==========================================================================
-   CAMPUSMATCH — CENTRAL TYPE DEFINITIONS (lib/types.ts)
+   SSUMATCH — CENTRAL TYPE DEFINITIONS (lib/types.ts)
    Tập trung toàn bộ interface và type của ứng dụng tại một file duy nhất
    giúp dễ dàng quản lý, tái sử dụng, đồng bộ dữ liệu với Backend Spring Boot
    và hỗ trợ mở rộng các module frontend (Stores, Services, Components).
@@ -944,7 +944,7 @@ export interface NavItem {
   icon: React.ComponentType<{ className?: string }>; // Component biểu tượng Lucide
 }
 
-/** Thuộc tính của logo thương hiệu CampusMatch dùng chung cho các layout. */
+/** Thuộc tính của logo thương hiệu SSUMatch dùng chung cho các layout. */
 export interface BrandLogoProps {
   /** Cạnh vuông của logo tính bằng px; logo được co giãn giữ tỉ lệ (object-contain). */
   size?: number;

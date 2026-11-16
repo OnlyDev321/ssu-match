@@ -1,5 +1,5 @@
 /**
- * CampusMatch Reusable Design System
+ * SSUMatch Reusable Design System
  * Unified Light & Dark Mode Tokens, Providers & Components
  * Documentation: frontend/DESIGN.md
  */

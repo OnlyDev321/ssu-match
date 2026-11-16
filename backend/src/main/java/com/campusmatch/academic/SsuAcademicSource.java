@@ -36,7 +36,7 @@ public class SsuAcademicSource {
 
     protected Document load(String url) throws IOException {
         return Jsoup.connect(URI.create(url).toASCIIString()).timeout(15000)
-                .maxBodySize(3_000_000).userAgent("CampusMatch Academic Catalog Sync").get();
+                .maxBodySize(3_000_000).userAgent("SSUMatch Academic Catalog Sync").get();
     }
 
     static Map<String, String> collegeLinks(Document document) {
