@@ -361,6 +361,7 @@ export const vi: TranslationDict = {
     breadcrumbDirectory: "DANH MỤC KHÔNG GIAN LÀM VIỆC",
     breadcrumbCampus: "Khuôn viên Soongsil",
     title: "Tìm nhóm học tập",
+    otherAppLink: "Khám phá SSU OnePage",
     subtitle:
       "Khám phá các nhóm học tập, đồ án tốt nghiệp và lập trình trong toàn trường.",
     activeGroups: "Nhóm đang hoạt động",

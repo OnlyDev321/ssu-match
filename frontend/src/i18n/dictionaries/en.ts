@@ -370,6 +370,7 @@ export const en = {
     breadcrumbDirectory: "WORKSPACE DIRECTORY",
     breadcrumbCampus: "Soongsil Campus",
     title: "Find Your Group",
+    otherAppLink: "Explore SSU OnePage",
     subtitle:
       "Discover study groups, capstone design projects, and programming teams across campus.",
     activeGroups: "Groups",

@@ -11,6 +11,7 @@ import {
   X,
   SlidersHorizontal,
   Search,
+  ExternalLink,
 } from "lucide-react";
 import GroupCard from "@/components/group/GroupCard";
 import ApplyModal from "@/components/application/ApplyModal";
@@ -167,9 +168,20 @@ const GroupPage = () => {
 
       {/* 2. Page Title & Subtitle */}
       <div className="space-y-1.5">
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[var(--text-primary)]">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[var(--text-primary)]">
           <ScrambleText text={t.groupsPage.title} />
-        </h1>
+          </h1>
+          <a
+            href="https://ssuonepage.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-full border border-[var(--primary)]/25 bg-[var(--primary)]/8 px-3 py-1 text-xs font-semibold text-[var(--primary)] transition-colors hover:border-[var(--primary)]/50 hover:bg-[var(--primary)]/12 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+          >
+            {t.groupsPage.otherAppLink}
+            <ExternalLink aria-hidden="true" className="h-3.5 w-3.5" />
+          </a>
+        </div>
         <p className="text-sm sm:text-base text-[var(--text-secondary)]">
           <ScrambleText text={t.groupsPage.subtitle} />
         </p>

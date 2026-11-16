@@ -353,6 +353,7 @@ export const ko: TranslationDict = {
     breadcrumbDirectory: "워크스페이스 디렉토리",
     breadcrumbCampus: "숭실대학교 캠퍼스",
     title: "스터디 & 프로젝트 탐색",
+    otherAppLink: "SSU OnePage 둘러보기",
     subtitle: "교내 스터디, 캡스톤 디자인 프로젝트, 코딩 팀원을 찾아보세요.",
     activeGroups: "활동 중인 그룹",
     teamsRecruiting: "모집 중인 팀",
