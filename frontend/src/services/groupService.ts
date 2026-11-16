@@ -1,5 +1,6 @@
 import { apiRequest } from "@/lib/api";
 import { useAuthStore } from "@/stores/authStore";
+import { invalidateCachedQueries } from "@/lib/queryCache";
 import type { CreateGroupPayload, GroupCardData, GroupDetailData, GroupDetailResponse, GroupFilterParams, GroupSummaryResponse, MyGroupSummary, SpringPage, UpdateGroupPayload } from "@/lib/types";
 
 const toCard = (group: GroupSummaryResponse): GroupCardData => ({
@@ -59,16 +60,26 @@ export async function fetchGroups(params: GroupFilterParams = {}): Promise<Sprin
   return { ...page, content: page.content.map(toCard) };
 }
 
+export function getGroupsCacheKey(params: GroupFilterParams = {}): string {
+  const query = new URLSearchParams();
+  for (const key of ["keyword", "college", "department", "postYear", "status", "page", "size", "sort"] as const) {
+    const value = params[key];
+    if (value !== undefined && value !== "") query.set(key, String(value));
+  }
+  return `public:groups:${query.toString()}`;
+}
+
 export async function fetchGroupDetail(id: string | number): Promise<GroupDetailData> {
   return toDetail(await apiRequest<GroupDetailResponse>(`/groups/${id}`));
 }
 
 /** Cập nhật lựa chọn hiển thị danh tính của chính thành viên hiện tại. */
 export async function updateMyGroupIdentity(groupId: string | number, anonymous: boolean): Promise<void> {
-  return apiRequest<void>(`/groups/${groupId}/members/me/privacy`, {
+  await apiRequest<void>(`/groups/${groupId}/members/me/privacy`, {
     method: "PATCH",
     body: JSON.stringify({ anonymous }),
   });
+  invalidateCurrentUserGroups();
 }
 
 export async function fetchAvailableYears(): Promise<number[]> {
@@ -80,7 +91,7 @@ export async function getMyGroups(): Promise<MyGroupSummary[]> {
 }
 
 export async function createGroup(payload: CreateGroupPayload): Promise<GroupDetailResponse> {
-  return apiRequest<GroupDetailResponse>("/groups", {
+  const group = await apiRequest<GroupDetailResponse>("/groups", {
     method: "POST",
     body: JSON.stringify({
       title: payload.title,
@@ -96,15 +107,34 @@ export async function createGroup(payload: CreateGroupPayload): Promise<GroupDet
       contactPhone: payload.contactPhone,
     }),
   });
+  invalidatePublicGroupData();
+  invalidateCurrentUserGroups();
+  return group;
 }
 
 export async function updateGroup(groupId: number, payload: UpdateGroupPayload): Promise<GroupDetailResponse> {
-  return apiRequest<GroupDetailResponse>(`/groups/${groupId}`, {
+  const group = await apiRequest<GroupDetailResponse>(`/groups/${groupId}`, {
     method: "PUT",
     body: JSON.stringify(payload),
   });
+  invalidatePublicGroupData();
+  invalidateCurrentUserGroups();
+  return group;
 }
 
 export async function deleteGroup(groupId: number | string): Promise<void> {
-  return apiRequest<void>(`/groups/${groupId}`, { method: "DELETE" });
+  await apiRequest<void>(`/groups/${groupId}`, { method: "DELETE" });
+  invalidatePublicGroupData();
+  invalidateCurrentUserGroups();
+}
+
+function invalidatePublicGroupData() {
+  invalidateCachedQueries("public:groups:");
+  invalidateCachedQueries("public:statistics");
+  invalidateCachedQueries("public:group-years");
+}
+
+function invalidateCurrentUserGroups() {
+  const userId = useAuthStore.getState().userId;
+  if (userId !== null) invalidateCachedQueries(`private:${userId}:groups`);
 }

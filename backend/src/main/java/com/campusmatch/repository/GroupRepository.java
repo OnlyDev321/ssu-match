@@ -4,6 +4,7 @@ import com.campusmatch.entity.GroupStatus;
 import com.campusmatch.entity.StudyGroup;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -14,6 +15,10 @@ import java.util.List;
 
 @Repository
 public interface GroupRepository extends JpaRepository<StudyGroup, Long>, JpaSpecificationExecutor<StudyGroup> {
+
+    @Override
+    @EntityGraph(attributePaths = "leader")
+    Page<StudyGroup> findAll(Specification<StudyGroup> spec, Pageable pageable);
 
     List<StudyGroup> findByLeaderId(Long leaderId);
 

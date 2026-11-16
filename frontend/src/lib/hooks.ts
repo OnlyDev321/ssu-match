@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { toApiErrorCode } from "@/lib/api";
 import { useAuthHydrated, useAuthStore } from "@/stores/authStore";
 import type { ApiErrorCode, AsyncStatus, ServiceDataState } from "@/lib/types";
+import { fetchCachedQuery, getEmptyQuerySnapshot, getQuerySnapshot, subscribeQuery } from "@/lib/queryCache";
 
 /**
  * Yêu cầu đăng nhập trước khi vào trang (cùng cách làm với trang /groups):
@@ -68,6 +69,48 @@ export const useServiceData = <T,>(
   }, []);
 
   return { status, data, errorCode, reload, setData: setDataState };
+};
+
+/**
+ * Cache service responses in tab memory and revalidate them after their TTL.
+ * Cached data is shown immediately while a stale entry refreshes in the background.
+ */
+export const useCachedServiceData = <T,>(
+  key: string,
+  load: () => Promise<T>,
+  enabled: boolean,
+  staleTimeMs = 30_000,
+): ServiceDataState<T> => {
+  const snapshot = useSyncExternalStore(
+    useCallback((listener) => subscribeQuery(key, listener), [key]),
+    useCallback(() => getQuerySnapshot<T>(key), [key]),
+    getEmptyQuerySnapshot<T>,
+  );
+
+  useEffect(() => {
+    if (!enabled) return;
+    void fetchCachedQuery(key, load, staleTimeMs).catch(() => undefined);
+  }, [enabled, key, load, snapshot.updatedAt, staleTimeMs]);
+
+  const reload = useCallback(() => {
+    void fetchCachedQuery(key, load, staleTimeMs, true).catch(() => undefined);
+  }, [key, load, staleTimeMs]);
+
+  const status: AsyncStatus = snapshot.data !== null
+    ? "ready"
+    : snapshot.error !== null
+      ? "error"
+      : "loading";
+
+  return {
+    status,
+    data: snapshot.data,
+    errorCode: snapshot.error === null ? null : toApiErrorCode(snapshot.error),
+    reload,
+    setData: (data) => {
+      void fetchCachedQuery(key, () => Promise.resolve(data), staleTimeMs, true);
+    },
+  };
 };
 
 /** Trì hoãn cập nhật giá trị cho ô tìm kiếm. */

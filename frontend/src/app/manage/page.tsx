@@ -7,8 +7,9 @@ import { Badge, Button } from "@/design-system";
 import MyGroupCard from "@/components/group/MyGroupCard";
 import { CardSkeletonList, EmptyState, ErrorState } from "@/components/common/AsyncState";
 import { getMyGroups } from "@/services/groupService";
-import { useRequireLogin, useServiceData } from "@/lib/hooks";
+import { useCachedServiceData, useRequireLogin } from "@/lib/hooks";
 import { useLanguageStore } from "@/stores/languageStore";
+import { useAuthStore } from "@/stores/authStore";
 import type { MyGroupColumnProps } from "@/lib/types";
 
 // Trang Manage (My Groups): danh sách nhóm của tôi, truy cập từ mục Manage trên Sidebar.
@@ -49,7 +50,10 @@ const MyGroupColumn = ({ title, groups, variant, emptyText, emptyAction }: MyGro
 const ManagePage = () => {
   const { t } = useLanguageStore();
   const isReady = useRequireLogin("/manage");
-  const { status, data: groups, errorCode, reload } = useServiceData(getMyGroups, isReady);
+  const userId = useAuthStore((state) => state.userId);
+  const { status, data: groups, errorCode, reload } = useCachedServiceData(
+    `private:${userId}:groups`, getMyGroups, isReady && userId !== null, 30_000,
+  );
 
   if (!isReady) return null;
 

@@ -4,6 +4,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import type { StudentProfile, AuthState, TimetableStatus } from "@/lib/types";
 import { normalizeStudentTimetable } from "@/lib/timetableParser";
 import { useLanguageStore } from "@/stores/languageStore";
+import { clearCachedQueries } from "@/lib/queryCache";
 
 // Khôi phục trạng thái thời khóa biểu từ localStorage:
 // phiên cũ (chưa có trường này), trạng thái "loading" bị kẹt hoặc dữ liệu hỏng → "not_fetched" (yêu cầu đăng nhập lại).
@@ -85,6 +86,7 @@ export const useAuthStore = create<AuthState>()(
             data.timetableStatus === "success" ? normalizeStudentTimetable(data.timetable) : null;
 
           // Lưu JWT thật do Spring Boot cấp và ID người dùng trong DB (BFF chuyển tiếp từ /api/auth/sso/usaint)
+          clearCachedQueries("private:");
           set({
             user: studentProfile,
             token: data.token ?? null,
@@ -107,6 +109,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
+        clearCachedQueries("private:");
         set({
           user: null,
           token: null,

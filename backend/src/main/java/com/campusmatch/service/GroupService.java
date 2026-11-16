@@ -316,9 +316,16 @@ public class GroupService {
         };
 
         Page<StudyGroup> groupPage = groupRepository.findAll(spec, pageable);
+        List<Long> groupIds = groupPage.getContent().stream().map(StudyGroup::getId).toList();
+        Map<Long, Long> memberCounts = groupIds.isEmpty()
+                ? Map.of()
+                : groupMemberRepository.countMembersByGroupIds(groupIds).stream()
+                        .collect(Collectors.toMap(
+                                GroupMemberRepository.GroupMemberCount::getGroupId,
+                                GroupMemberRepository.GroupMemberCount::getMemberCount));
 
         return groupPage.map(group -> {
-            long memberCount = groupMemberRepository.countByGroupId(group.getId());
+            long memberCount = memberCounts.getOrDefault(group.getId(), 0L);
             return GroupSummaryResponse.builder()
                     .id(group.getId())
                     .title(group.getTitle())

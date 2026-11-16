@@ -1,7 +1,7 @@
 "use client";
 
 import { ScrambleText } from "@/design-system/components/ScrambleText";
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
   Network,
   UserPlus,
@@ -17,18 +17,20 @@ import GroupCard from "@/components/group/GroupCard";
 import ApplyModal from "@/components/application/ApplyModal";
 import { Card, SearchInput, Button, Badge } from "@/design-system";
 import { CardSkeletonList, ErrorState } from "@/components/common/AsyncState";
-import { useDebounce, useServiceData } from "@/lib/hooks";
+import { useCachedServiceData, useDebounce } from "@/lib/hooks";
 import type { AcademicCatalog, GroupCardData, GroupDetailData } from "@/lib/types";
 import { useRequireLogin } from "@/lib/hooks";
 import { useLanguageStore } from "@/stores/languageStore";
 
 import { getAcademicCatalog } from "@/services/academicService";
 import { getPublicStatistics } from "@/services/statisticsService";
-import { fetchAvailableYears, fetchGroups, getMyGroups } from "@/services/groupService";
+import { fetchAvailableYears, fetchGroups, getGroupsCacheKey, getMyGroups } from "@/services/groupService";
 import { getMyApplications } from "@/services/applicationService";
+import { useAuthStore } from "@/stores/authStore";
 
 const GroupPage = () => {
   const isReady = useRequireLogin("/groups");
+  const userId = useAuthStore((state) => state.userId);
   const { t } = useLanguageStore();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -60,20 +62,15 @@ const GroupPage = () => {
   const [isYearOpen, setIsYearOpen] = useState(false);
   const [isSortOpen, setIsSortOpen] = useState(false);
 
-  const [catalog, setCatalog] = useState<AcademicCatalog | null>(null);
-  const [catalogError, setCatalogError] = useState(false);
-  const [catalogRequest, setCatalogRequest] = useState(0);
-
-  useEffect(() => {
+  const loadCatalog = useCallback(() => {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-    let active = true;
-    getAcademicCatalog(controller.signal)
-      .then((data) => { if (active) setCatalog(data); })
-      .catch(() => { if (active) setCatalogError(true); })
-      .finally(() => clearTimeout(timeout));
-    return () => { active = false; controller.abort(); clearTimeout(timeout); };
-  }, [catalogRequest]);
+    const timeout = window.setTimeout(() => controller.abort(), 10_000);
+    return getAcademicCatalog(controller.signal).finally(() => window.clearTimeout(timeout));
+  }, []);
+  const { data: catalog, status: catalogStatus, reload: reloadCatalog } = useCachedServiceData<AcademicCatalog>(
+    "public:academic-catalog", loadCatalog, isReady, 5 * 60_000,
+  );
+  const catalogError = catalogStatus === "error";
 
   // Danh mục không phụ thuộc số nhóm hiện có trong trang.
   const colleges = catalog?.colleges.map((college) => college.name) ?? [];
@@ -82,15 +79,9 @@ const GroupPage = () => {
     .flatMap((college) => college.departments)));
 
   // Available years from backend
-  const [years, setYears] = useState<number[]>([]);
-
-  useEffect(() => {
-    let active = true;
-    fetchAvailableYears()
-      .then((data) => { if (active && data.length > 0) setYears(data); })
-      .catch(() => { if (active) setYears([]); });
-    return () => { active = false; };
-  }, []);
+  const loadYears = useCallback(() => fetchAvailableYears(), []);
+  const { data: yearsData } = useCachedServiceData("public:group-years", loadYears, isReady, 60_000);
+  const years = yearsData ?? [];
 
   const handleSelectCollege = (col: string) => {
     setSelectedCollege(col);
@@ -109,7 +100,7 @@ const GroupPage = () => {
     setCurrentPage(1);
   };
 
-  const loadGroups = useCallback(() => fetchGroups({
+  const groupParams = useMemo(() => ({
     keyword: appliedQuery.trim() || undefined,
     college: appliedCollege === "ALL" ? undefined : appliedCollege,
     department: appliedDepartment === "ALL" ? undefined : appliedDepartment,
@@ -118,17 +109,24 @@ const GroupPage = () => {
     size: ITEMS_PER_PAGE,
     sort: sortBy === "spots" ? "availableSpots,desc" : "createdAt,desc",
   }), [appliedQuery, appliedCollege, appliedDepartment, appliedYear, currentPage, sortBy]);
-  const { status, data: groupPage, errorCode, reload } = useServiceData(loadGroups, isReady);
+  const loadGroups = useCallback(() => fetchGroups(groupParams), [groupParams]);
+  const { status, data: groupPage, errorCode, reload } = useCachedServiceData(
+    getGroupsCacheKey(groupParams), loadGroups, isReady, 30_000,
+  );
   const loadMyGroups = useCallback(() => getMyGroups(), []);
-  const { status: membershipStatus, data: myGroups, errorCode: membershipError, reload: reloadMembership } = useServiceData(loadMyGroups, isReady);
+  const { status: membershipStatus, data: myGroups, errorCode: membershipError, reload: reloadMembership } = useCachedServiceData(
+    `private:${userId}:groups`, loadMyGroups, isReady && userId !== null, 30_000,
+  );
   const loadMyApplications = useCallback(() => getMyApplications(), []);
-  const { status: applicationStatus, data: myApplications, reload: reloadApplications } = useServiceData(loadMyApplications, isReady);
+  const { status: applicationStatus, data: myApplications, reload: reloadApplications } = useCachedServiceData(
+    `private:${userId}:applications`, loadMyApplications, isReady && userId !== null, 30_000,
+  );
   const joinedGroupIds = useMemo(() => new Set((myGroups ?? []).map((group) => group.id)), [myGroups]);
   const pendingGroupIds = useMemo(() => new Set((myApplications ?? []).filter((application) => application.status === "PENDING").map((application) => application.groupId)), [myApplications]);
   const paginatedGroups = groupPage?.content ?? [];
   const totalPages = Math.max(1, groupPage?.totalPages ?? 1);
   const loadStatistics = useCallback(() => getPublicStatistics(), []);
-  const { data: statistics } = useServiceData(loadStatistics, isReady);
+  const { data: statistics } = useCachedServiceData("public:statistics", loadStatistics, isReady, 60_000);
   const activeGroupsCount = statistics ? statistics.recruitingGroups + statistics.fullGroups : 0;
   const teamsRecruitingCount = statistics?.recruitingGroups ?? 0;
 
@@ -281,7 +279,7 @@ const GroupPage = () => {
                   {!catalog && (
                     <div className="px-3.5 py-2 text-xs text-[var(--text-muted)]" role="status">
                       {catalogError ? (
-                        <button type="button" onClick={() => { setCatalogError(false); setCatalogRequest((value) => value + 1); }}>
+                        <button type="button" onClick={reloadCatalog}>
                           {t.groupsPage.catalogRetry}
                         </button>
                       ) : t.groupsPage.catalogLoading}
@@ -350,7 +348,7 @@ const GroupPage = () => {
                   {!catalog && (
                     <div className="px-3.5 py-2 text-xs text-[var(--text-muted)]" role="status">
                       {catalogError ? (
-                        <button type="button" onClick={() => { setCatalogError(false); setCatalogRequest((value) => value + 1); }}>
+                        <button type="button" onClick={reloadCatalog}>
                           {t.groupsPage.catalogRetry}
                         </button>
                       ) : t.groupsPage.catalogLoading}
