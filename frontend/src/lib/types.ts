@@ -385,7 +385,7 @@ export interface ServiceDataState<T> {
   status: AsyncStatus;                          // Trạng thái tải
   data: T | null;                               // Dữ liệu đã tải (null khi chưa có)
   errorCode: ApiErrorCode | null;               // Mã lỗi khi status = "error"
-  reload: () => void;                           // Tải lại dữ liệu (VD: nút "Thử lại")
+  reload: () => void | Promise<void>;           // Tải lại dữ liệu (VD: nút "Thử lại")
   setData: (updater: (prev: T | null) => T | null) => void; // Cập nhật dữ liệu cục bộ sau thao tác thành công
 }
 

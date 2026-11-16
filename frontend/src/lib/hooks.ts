@@ -93,7 +93,7 @@ export const useCachedServiceData = <T,>(
   }, [enabled, key, load, snapshot.updatedAt, staleTimeMs]);
 
   const reload = useCallback(() => {
-    void fetchCachedQuery(key, load, staleTimeMs, true).catch(() => undefined);
+    return fetchCachedQuery(key, load, staleTimeMs, true).then(() => undefined);
   }, [key, load, staleTimeMs]);
 
   const status: AsyncStatus = snapshot.data !== null
