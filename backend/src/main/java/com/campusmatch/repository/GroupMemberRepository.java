@@ -2,6 +2,7 @@ package com.campusmatch.repository;
 
 import com.campusmatch.entity.GroupMember;
 import com.campusmatch.entity.GroupMemberId;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -13,7 +14,11 @@ public interface GroupMemberRepository extends JpaRepository<GroupMember, GroupM
 
     List<GroupMember> findByGroupId(Long groupId);
 
+    @EntityGraph(attributePaths = {"group", "group.leader"})
     List<GroupMember> findByUserId(Long userId);
+
+    @EntityGraph(attributePaths = {"group", "user"})
+    List<GroupMember> findByGroupIdIn(List<Long> groupIds);
 
     Optional<GroupMember> findByGroupIdAndUserId(Long groupId, Long userId);
 

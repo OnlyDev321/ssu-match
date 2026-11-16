@@ -24,6 +24,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -377,16 +378,27 @@ public class GroupService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy hồ sơ sinh viên"));
 
         List<GroupMember> memberships = groupMemberRepository.findByUserId(user.getId());
+        if (memberships.isEmpty()) return List.of();
+
+        List<Long> groupIds = memberships.stream()
+                .map(membership -> membership.getGroup().getId())
+                .toList();
+        Map<Long, List<GroupMember>> membersByGroupId = groupMemberRepository.findByGroupIdIn(groupIds).stream()
+                .collect(Collectors.groupingBy(member -> member.getGroup().getId()));
+        Map<Long, Long> pendingCountsByGroupId = applicationRepository.countByGroupIdsAndStatus(
+                        groupIds, ApplicationStatus.PENDING).stream()
+                .collect(Collectors.toMap(
+                        ApplicationRepository.PendingApplicationCount::getGroupId,
+                        ApplicationRepository.PendingApplicationCount::getPendingCount));
 
         return memberships.stream().map(membership -> {
             StudyGroup group = membership.getGroup();
             String myRole = membership.getRole().name();
 
-            List<GroupMember> allMembers = groupMemberRepository.findByGroupId(group.getId());
+            List<GroupMember> allMembers = membersByGroupId.getOrDefault(group.getId(), List.of());
             long memberCount = allMembers.size();
-
             long pendingCount = GroupRole.LEADER.name().equals(myRole)
-                    ? applicationRepository.countByGroupIdAndStatus(group.getId(), ApplicationStatus.PENDING)
+                    ? pendingCountsByGroupId.getOrDefault(group.getId(), 0L)
                     : 0L;
 
             List<GroupMemberSummaryResponse> memberResponses = allMembers.stream()
