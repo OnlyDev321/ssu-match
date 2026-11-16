@@ -5,13 +5,13 @@ FROM gradle:9.8.1-jdk17 AS builder
 
 WORKDIR /workspace
 
-# Copy the wrapper and build metadata first so dependency resolution can be cached.
-COPY gradlew gradle/ settings.gradle build.gradle ./
-RUN chmod +x ./gradlew
-RUN ./gradlew dependencies --no-daemon || true
+# The Gradle image already contains the matching Gradle version. Use its
+# executable directly so this container build does not depend on the wrapper JAR.
+COPY settings.gradle build.gradle ./
+RUN gradle dependencies --no-daemon || true
 
 COPY src ./src
-RUN ./gradlew clean bootJar --no-daemon
+RUN gradle clean bootJar --no-daemon
 
 # Keep the runtime image limited to a JRE and the packaged application.
 FROM eclipse-temurin:17-jre
