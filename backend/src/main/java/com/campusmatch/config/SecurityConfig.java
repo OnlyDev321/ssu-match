@@ -57,7 +57,9 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(List.of(
                 "http://localhost:3000",
                 "http://127.0.0.1:3000",
-                "https://campus-frontend-xi.vercel.app"
+                "https://campus-frontend-xi.vercel.app",
+                "https://ssumatch.com",
+                "https://www.ssumatch.com"
         ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
