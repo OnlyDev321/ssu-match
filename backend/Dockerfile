@@ -8,7 +8,7 @@ WORKDIR /workspace
 # The Gradle image already contains the matching Gradle version. Use its
 # executable directly so this container build does not depend on the wrapper JAR.
 COPY settings.gradle build.gradle ./
-RUN gradle dependencies --no-daemon || true
+RUN gradle dependencies --no-daemon
 
 COPY src ./src
 RUN gradle clean bootJar --no-daemon
