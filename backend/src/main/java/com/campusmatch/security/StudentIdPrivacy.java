@@ -21,10 +21,11 @@ public final class StudentIdPrivacy {
         return publicStudentId(studentId);
     }
 
-    /** Response nhóm luôn che bốn ký tự đầu, kể cả khi người xem là chủ tài khoản. */
+    /** Response công khai chỉ giữ lại hai ký tự cuối, kể cả khi người xem là chủ tài khoản. */
     public static String publicStudentId(String studentId) {
         if (studentId == null) return null;
-        int hiddenLength = Math.min(4, studentId.length());
+        int visibleLength = studentId.length() > 2 ? 2 : 0;
+        int hiddenLength = studentId.length() - visibleLength;
         return "*".repeat(hiddenLength) + studentId.substring(hiddenLength);
     }
 
