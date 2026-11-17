@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { toApiErrorCode } from "@/lib/api";
 import { useAuthHydrated, useAuthStore } from "@/stores/authStore";
 import type { ApiErrorCode, AsyncStatus, ServiceDataState } from "@/lib/types";
-import { fetchCachedQuery, getEmptyQuerySnapshot, getQuerySnapshot, subscribeQuery } from "@/lib/queryCache";
+import { fetchCachedQuery, getEmptyQuerySnapshot, getQuerySnapshot, subscribeQuery, updateCachedQuery } from "@/lib/queryCache";
 
 /**
  * Yêu cầu đăng nhập trước khi vào trang (cùng cách làm với trang /groups):
@@ -107,9 +107,7 @@ export const useCachedServiceData = <T,>(
     data: snapshot.data,
     errorCode: snapshot.error === null ? null : toApiErrorCode(snapshot.error),
     reload,
-    setData: (data) => {
-      void fetchCachedQuery(key, () => Promise.resolve(data), staleTimeMs, true);
-    },
+    setData: (updater) => updateCachedQuery(key, updater),
   };
 };
 

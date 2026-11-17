@@ -12,6 +12,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -80,16 +82,34 @@ public class ConversationService {
     public List<ConversationResponse> getConversations(String studentId) {
         User user = userRepository.findByStudentId(studentId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
         List<Conversation> conversations = conversationRepository.findByRequesterIdOrLeaderIdOrderByUpdatedAtDesc(user.getId(), user.getId());
-        groupMemberRepository.findByUserId(user.getId()).stream()
-                .map(member -> conversationRepository.findByGroupIdAndGroupChatTrue(member.getGroup().getId()).orElse(null))
-                .filter(java.util.Objects::nonNull)
-                .forEach(conversation -> {
-                    if (!conversations.contains(conversation)) conversations.add(conversation);
-                });
+        List<Long> groupIds = groupMemberRepository.findByUserId(user.getId()).stream()
+                .map(member -> member.getGroup().getId()).distinct().collect(Collectors.toList());
+        if (!groupIds.isEmpty()) {
+            for (Conversation conversation : conversationRepository.findByGroupIdInAndGroupChatTrue(groupIds)) {
+                if (!conversations.contains(conversation)) conversations.add(conversation);
+            }
+        }
+
+        List<Long> conversationIds = conversations.stream().map(Conversation::getId).collect(Collectors.toList());
+        Map<Long, ChatMessage> latestMessages = new HashMap<>();
+        Map<Long, Integer> participantCounts = new HashMap<>();
+        if (!conversationIds.isEmpty()) {
+            messageRepository.findLatestMessagesByConversationIds(conversationIds).forEach(message ->
+                    latestMessages.putIfAbsent(message.getConversation().getId(), message));
+            List<Long> groupChatIds = conversations.stream().filter(Conversation::isGroupChat)
+                    .map(conversation -> conversation.getGroup().getId()).distinct().collect(Collectors.toList());
+            if (!groupChatIds.isEmpty()) {
+                groupMemberRepository.countMembersByGroupIds(groupChatIds).forEach(count ->
+                        participantCounts.put(count.getGroupId(), count.getMemberCount().intValue()));
+            }
+        }
+
         return conversations.stream()
                 .sorted((first, second) -> java.util.Comparator.nullsLast(java.util.Comparator.<LocalDateTime>reverseOrder())
                         .compare(first.getUpdatedAt(), second.getUpdatedAt()))
-                .map(c -> mapConversation(c, user)).collect(Collectors.toList());
+                .map(conversation -> mapConversation(conversation, user, latestMessages.get(conversation.getId()),
+                        participantCounts.getOrDefault(conversation.getGroup().getId(), 0)))
+                .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
@@ -115,26 +135,20 @@ public class ConversationService {
         return c;
     }
 
-    private ConversationResponse mapConversation(Conversation c, User viewer) {
+    private ConversationResponse mapConversation(Conversation c, User viewer, ChatMessage last, int participantCount) {
         if (c.isGroupChat()) {
-            ChatMessage last = getLastMessage(c);
             return ConversationResponse.builder().id(c.getId()).groupId(c.getGroup().getId()).groupTitle(c.getGroup().getTitle())
                     .otherParticipantName(c.getGroup().getTitle()).otherParticipantAnonymous(false).groupChat(true)
-                    .participantCount((int) groupMemberRepository.countByGroupId(c.getGroup().getId()))
+                    .participantCount(participantCount)
                     .lastMessage(last == null ? null : mapMessage(last, viewer)).updatedAt(c.getUpdatedAt()).build();
         }
         boolean viewerIsLeader = c.getLeader().getId().equals(viewer.getId());
         User other = viewerIsLeader ? c.getRequester() : c.getLeader();
         boolean anonymous = viewerIsLeader ? c.isRequesterAnonymous() : c.getGroup().isLeaderAnonymous();
-        ChatMessage last = getLastMessage(c);
         return ConversationResponse.builder().id(c.getId()).groupId(c.getGroup().getId()).groupTitle(c.getGroup().getTitle())
                 .otherParticipantName(anonymous ? "Người tạo nhóm ẩn danh" : other.getName())
                 .otherParticipantAnonymous(anonymous).groupChat(false).participantCount(2)
                 .lastMessage(last == null ? null : mapMessage(last, viewer)).updatedAt(c.getUpdatedAt()).build();
-    }
-
-    private ChatMessage getLastMessage(Conversation conversation) {
-        return messageRepository.findFirstByConversationIdOrderByCreatedAtDesc(conversation.getId()).orElse(null);
     }
 
     private ChatMessageResponse mapMessage(ChatMessage m, User viewer) {

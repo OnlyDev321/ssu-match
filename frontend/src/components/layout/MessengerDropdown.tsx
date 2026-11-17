@@ -6,6 +6,7 @@ import { MessageCircle, Send, ShieldCheck, X } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { useLanguageStore } from "@/stores/languageStore";
 import { getConversationMessages, getConversations, sendConversationMessage } from "@/services/messengerService";
+import { useCachedServiceData } from "@/lib/hooks";
 import type { ChatMessage, ConversationSummary } from "@/lib/types";
 
 const timeLabel = (value?: string | null) => value ? new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
@@ -16,7 +17,13 @@ export default function MessengerDropdown() {
   const token = useAuthStore((state) => state.token);
   const userId = useAuthStore((state) => state.userId);
   const [isOpen, setIsOpen] = useState(false);
-  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  const conversationsQuery = useCachedServiceData<ConversationSummary[]>(
+    `private:messenger:conversations:${userId ?? "anonymous"}`,
+    getConversations,
+    isOpen && !!token && !!userId,
+    15_000,
+  );
+  const conversations = conversationsQuery.data ?? [];
   const [openConversations, setOpenConversations] = useState<ConversationSummary[]>([]);
   const [messagesByConversation, setMessagesByConversation] = useState<Record<number, ChatMessage[]>>({});
   const [draftByConversation, setDraftByConversation] = useState<Record<number, string>>({});
@@ -38,11 +45,6 @@ export default function MessengerDropdown() {
     return () => window.removeEventListener("resize", updateVisibleChatLimit);
   }, []);
 
-  const loadConversations = useCallback(async () => {
-    if (!token) return;
-    try { setConversations(await getConversations()); } catch { setConversations([]); }
-  }, [token]);
-
   const loadMessages = useCallback(async (conversation: ConversationSummary) => {
     setLoadingByConversation((current) => ({ ...current, [conversation.id]: true }));
     try {
@@ -54,12 +56,6 @@ export default function MessengerDropdown() {
       setLoadingByConversation((current) => ({ ...current, [conversation.id]: false }));
     }
   }, []);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const timer = window.setTimeout(() => void loadConversations(), 0);
-    return () => window.clearTimeout(timer);
-  }, [isOpen, loadConversations]);
 
   useEffect(() => {
     const onOutside = (event: MouseEvent) => {
@@ -101,7 +97,9 @@ export default function MessengerDropdown() {
       const message = await sendConversationMessage(conversation.id, content);
       setMessagesByConversation((current) => ({ ...current, [conversation.id]: [...(current[conversation.id] || []), message] }));
       setDraftByConversation((current) => ({ ...current, [conversation.id]: "" }));
-      void loadConversations();
+      conversationsQuery.setData((current) => (current ?? []).map((item) => item.id === conversation.id
+        ? { ...item, lastMessage: message, updatedAt: message.createdAt }
+        : item));
     } finally { setSendingConversation(null); }
   };
 

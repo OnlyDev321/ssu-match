@@ -29,6 +29,14 @@ export function getQuerySnapshot<T>(key: string): QueryCacheSnapshot<T> {
   return (cache.get(key) as QueryCacheSnapshot<T> | undefined) ?? EMPTY_SNAPSHOT as QueryCacheSnapshot<T>;
 }
 
+export function updateCachedQuery<T>(key: string, updater: (previous: T | null) => T | null) {
+  const current = getQuerySnapshot<T>(key);
+  requestVersions.set(key, (requestVersions.get(key) ?? 0) + 1);
+  inFlight.delete(key);
+  cache.set(key, { data: updater(current.data), error: null, updatedAt: Date.now(), isFetching: false });
+  notify(key);
+}
+
 export function subscribeQuery(key: string, listener: () => void) {
   const keyListeners = listeners.get(key) ?? new Set<() => void>();
   keyListeners.add(listener);
