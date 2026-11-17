@@ -1,10 +1,13 @@
 import type { SupportedLanguage } from "@/lib/types";
 
-// Chỉ hiển thị 4 số cuối MSSV trên giao diện nhóm công khai, giữ nguyên số 0 đầu phần đuôi.
-export const maskStudentId = (studentId: string): string =>
-  studentId.replace(/.(?=.{4})/g, "*");
+// Che MSSV và giữ lại số chữ số cuối được phép hiển thị.
+export const maskStudentId = (studentId: string, visibleDigits = 2): string => {
+  const visibleCount = Math.min(studentId.length, Math.max(0, Math.floor(visibleDigits)));
+  const maskedCount = studentId.length - visibleCount;
+  return `${"*".repeat(maskedCount)}${visibleCount ? studentId.slice(-visibleCount) : ""}`;
+};
 
-// So sánh toàn bộ MSSV, không dùng tên hoặc 4 số cuối để nhận diện chủ tài khoản.
+// So sánh toàn bộ MSSV, không dùng tên hoặc hai số cuối để nhận diện chủ tài khoản.
 export const visibleStudentId = (studentId: string, viewerStudentId?: string): string =>
   viewerStudentId && studentId === viewerStudentId ? studentId : maskStudentId(studentId);
 

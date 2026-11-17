@@ -549,7 +549,7 @@ export default function GroupDetailPage({ params }: GroupDetailPageProps) {
                   </p>
                   {group.leaderStudentId && (
                     <p className="text-[11px] font-mono text-[var(--text-muted)] truncate">
-                      <ScrambleText text={formatMessage(copy.studentId, { id: maskStudentId(group.leaderStudentId) })} protectedValues={[maskStudentId(group.leaderStudentId)]} />
+                      <ScrambleText text={formatMessage(copy.studentId, { id: maskStudentId(group.leaderStudentId, 2) })} protectedValues={[maskStudentId(group.leaderStudentId, 2)]} />
                     </p>
                   )}
                 </div>
