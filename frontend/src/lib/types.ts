@@ -1155,8 +1155,26 @@ export interface NotificationStoreState {
   /** Số thông báo chưa đọc. */ unreadCount: number;
   /** Đang tải danh sách thông báo. */ isLoading: boolean;
   /** Tải lại thông báo từ backend. */ fetchNotifications: () => Promise<void>;
+  /** Thêm thông báo vừa nhận qua kết nối realtime, bỏ qua ID đã có. */ receiveRealtimeNotification: (notification: AppNotification) => void;
   /** Lưu trạng thái đã đọc của một thông báo. */ markAsRead: (id: string) => Promise<void>;
   /** Lưu trạng thái đã đọc của tất cả thông báo. */ markAllAsRead: () => Promise<void>;
   /** Xóa một thông báo sau khi backend xác nhận. */ removeNotification: (id: string) => Promise<void>;
   /** Xóa toàn bộ thông báo sau khi backend xác nhận. */ clearAll: () => Promise<void>;
 }
+
+/** Sự kiện JSON mà backend đẩy qua WebSocket. */
+export interface RealtimeServerEvent {
+  /** Tên loại sự kiện realtime. */
+  type?: string;
+  /** Dữ liệu gắn với loại sự kiện. */
+  payload?: unknown;
+}
+
+/** Props cho kết nối realtime được gắn với phiên đăng nhập. */
+export interface RealtimeConnectionProps {
+  /** JWT hiện tại dùng để xác thực socket. */
+  token: string;
+}
+
+/** Listener nhận tin nhắn mới; null báo rằng socket vừa kết nối lại. */
+export type RealtimeMessageListener = (message: ChatMessage | null) => void;

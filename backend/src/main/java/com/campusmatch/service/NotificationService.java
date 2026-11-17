@@ -4,8 +4,10 @@ import com.campusmatch.dto.NotificationResponse;
 import com.campusmatch.entity.*;
 import com.campusmatch.repository.NotificationRepository;
 import com.campusmatch.repository.UserRepository;
+import com.campusmatch.realtime.NotificationCreatedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +23,7 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional(readOnly = true)
     public List<NotificationResponse> getMyNotifications(String studentId) {
@@ -90,6 +93,8 @@ public class NotificationService {
                 .build();
 
         notificationRepository.save(notification);
+        eventPublisher.publishEvent(new NotificationCreatedEvent(
+                recipient.getStudentId(), NotificationResponse.fromEntity(notification)));
         log.info("Đã tạo thông báo type={} cho sinh viên MSSV: {}", type, recipient.getStudentId());
     }
 

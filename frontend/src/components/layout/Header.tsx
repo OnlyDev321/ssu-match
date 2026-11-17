@@ -15,13 +15,14 @@ import LanguageSwitcher from "@/components/layout/LanguageSwitcher";
 import NotificationDropdown from "@/components/layout/NotificationDropdown";
 import MessengerDropdown from "@/components/layout/MessengerDropdown";
 import { BrandLogo } from "@/components/layout/BrandLogo";
+import RealtimeConnection from "@/components/layout/RealtimeConnection";
 
 export default function Header() {
   const [isCommandBarOpen, setIsCommandBarOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
-  const { user, isLoggedIn, openLoginModal, logout } = useAuthStore();
+  const { user, token, isLoggedIn, openLoginModal, logout } = useAuthStore();
   const { t } = useLanguageStore();
 
   // Close user dropdown when clicking outside
@@ -65,6 +66,7 @@ export default function Header() {
 
             {isLoggedIn ? (
               <>
+                {token && <RealtimeConnection token={token} />}
                 {/* Notification Dropdown */}
                 <MessengerDropdown />
                 <NotificationDropdown />

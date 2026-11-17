@@ -49,6 +49,13 @@ export const useNotificationStore = create<NotificationStoreState>()(
         }
       },
 
+      receiveRealtimeNotification: (notification) => {
+        if (get().notifications.some((item) => item.id === notification.id)) return;
+        readRevision++;
+        const notifications = [notification, ...get().notifications];
+        set({ notifications, unreadCount: notifications.filter((item) => !item.isRead).length });
+      },
+
       markAsRead: async (id: string) => {
         if (!get().notifications.some((n) => n.id === id && !n.isRead)) return;
         const { isLoggedIn, token } = useAuthStore.getState();

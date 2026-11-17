@@ -3,7 +3,9 @@ package com.campusmatch.service;
 import com.campusmatch.dto.*;
 import com.campusmatch.entity.*;
 import com.campusmatch.repository.*;
+import com.campusmatch.realtime.ChatMessageCreatedEvent;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,6 +26,7 @@ public class ConversationService {
     private final UserRepository userRepository;
     private final GroupRepository groupRepository;
     private final GroupMemberRepository groupMemberRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public Conversation getOrCreateForApplication(Long groupId, Long requesterId, boolean requesterAnonymous) {
@@ -75,7 +78,19 @@ public class ConversationService {
         if (!StringUtils.hasText(content)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tin nhắn không được để trống");
         conversation.setUpdatedAt(LocalDateTime.now());
         conversationRepository.save(conversation);
-        return messageRepository.save(ChatMessage.builder().conversation(conversation).sender(sender).content(content.trim()).systemMessage(systemMessage).build());
+        ChatMessage message = messageRepository.save(ChatMessage.builder().conversation(conversation).sender(sender).content(content.trim()).systemMessage(systemMessage).build());
+        Map<String, User> recipients = new HashMap<>();
+        if (conversation.isGroupChat()) {
+            groupMemberRepository.findDetailMembersByGroupId(conversation.getGroup().getId()).forEach(member ->
+                    recipients.put(member.getUser().getStudentId(), member.getUser()));
+        } else {
+            recipients.put(conversation.getRequester().getStudentId(), conversation.getRequester());
+            recipients.put(conversation.getLeader().getStudentId(), conversation.getLeader());
+        }
+        Map<String, ChatMessageResponse> personalizedMessages = new HashMap<>();
+        recipients.forEach((studentId, recipient) -> personalizedMessages.put(studentId, mapMessage(message, recipient)));
+        eventPublisher.publishEvent(new ChatMessageCreatedEvent(personalizedMessages));
+        return message;
     }
 
     @Transactional(readOnly = true)

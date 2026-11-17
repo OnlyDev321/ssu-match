@@ -7,6 +7,8 @@ import { useAuthStore } from "@/stores/authStore";
 import { useLanguageStore } from "@/stores/languageStore";
 import { getConversationMessages, getConversations, sendConversationMessage } from "@/services/messengerService";
 import { useCachedServiceData } from "@/lib/hooks";
+import { getQuerySnapshot, invalidateCachedQueries, updateCachedQuery } from "@/lib/queryCache";
+import { subscribeRealtimeMessages } from "@/lib/realtimeEvents";
 import type { ChatMessage, ConversationSummary } from "@/lib/types";
 
 const timeLabel = (value?: string | null) => value ? new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
@@ -56,6 +58,29 @@ export default function MessengerDropdown() {
       setLoadingByConversation((current) => ({ ...current, [conversation.id]: false }));
     }
   }, []);
+
+  useEffect(() => subscribeRealtimeMessages((message) => {
+    const cacheKey = `private:messenger:conversations:${userId ?? "anonymous"}`;
+    if (message === null) {
+      invalidateCachedQueries(cacheKey);
+      openConversations.forEach((conversation) => void loadMessages(conversation));
+      return;
+    }
+
+    setMessagesByConversation((current) => {
+      const messages = current[message.conversationId];
+      if (!messages || messages.some((item) => item.id === message.id)) return current;
+      return { ...current, [message.conversationId]: [...messages, message] };
+    });
+
+    const cached = getQuerySnapshot<ConversationSummary[]>(cacheKey).data;
+    if (!cached?.some((item) => item.id === message.conversationId)) return;
+    updateCachedQuery<ConversationSummary[]>(cacheKey, (current) => (current ?? [])
+      .map((item) => item.id === message.conversationId
+        ? { ...item, lastMessage: message, updatedAt: message.createdAt }
+        : item)
+      .sort((first, second) => new Date(second.updatedAt || 0).getTime() - new Date(first.updatedAt || 0).getTime()));
+  }), [loadMessages, openConversations, userId]);
 
   useEffect(() => {
     const onOutside = (event: MouseEvent) => {

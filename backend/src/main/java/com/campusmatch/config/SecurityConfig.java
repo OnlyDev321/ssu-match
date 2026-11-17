@@ -38,6 +38,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers("/error").permitAll()
+                        // JWT được xác thực ngay trong frame AUTH đầu tiên của WebSocket.
+                        .requestMatchers("/ws").permitAll()
                         // Endpoints công khai
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/health", "/api/auth/**").permitAll()
