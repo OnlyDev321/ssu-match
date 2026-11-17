@@ -4,7 +4,7 @@ import { ScrambleText } from "@/design-system/components/ScrambleText";
 import { use, useCallback, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, AlertTriangle, Trash2 } from "lucide-react";
+import { ArrowLeft, AlertTriangle, ClipboardList, SlidersHorizontal, Trash2, Users } from "lucide-react";
 import { Avatar, Badge, Button, Card, RoleQuota, type BadgeVariant } from "@/design-system";
 import ManageGroupEditor from "@/components/group/ManageGroupEditor";
 import ApplicationCard from "@/components/application/ApplicationCard";
@@ -44,7 +44,7 @@ const omitKey = <V,>(record: Record<number, V>, key: number): Record<number, V> 
 };
 
 const backLinkClass =
-  "inline-flex items-center gap-1 text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--primary)] transition-colors";
+  "inline-flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--primary)] transition-colors";
 
 export default function ManageGroupPage({ params }: ManageGroupPageProps) {
   const { groupId: groupIdParam } = use(params);
@@ -124,20 +124,20 @@ function ManageGroupContent({ groupIdParam }: ManageGroupContentProps) {
     : "";
 
   return (
-    <div className="@container w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div className="@container mx-auto w-full max-w-7xl space-y-5 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
       <Link href="/manage" className={backLinkClass}>
         <ArrowLeft className="w-3.5 h-3.5" />
         <ScrambleText text={t.manage.backToManage} />
       </Link>
 
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)]">
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-[var(--border-muted)] pb-5">
+        <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)] sm:text-3xl">
           <ScrambleText text={t.manage.title} />
         </h1>
         {group && (
           <Link
             href={`/groups/${group.id}`}
-            className="inline-flex min-h-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
+            className="inline-flex min-h-10 items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-sm font-semibold text-[var(--text-primary)] shadow-(--shadow-level-1) transition-colors hover:border-[var(--primary)] hover:text-[var(--primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]"
           >
             <ScrambleText text={t.manage.groupDetailLink} />
           </Link>
@@ -167,77 +167,94 @@ function ManageGroupContent({ groupIdParam }: ManageGroupContentProps) {
         />
       ) : (
         <>
-          {/* Group summary */}
-          <Card className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="font-mono text-xs font-semibold text-[var(--primary)] tracking-wide uppercase">
-                {courseLabel}
-              </span>
-              <Badge
-                variant={statusVariant[group.status]}
-                size="sm"
-                dot
-                pulse={group.status === "RECRUITING"}
-                mono
-              >
-                <ScrambleText text={t.groupStatus[group.status]} />
-              </Badge>
+          <Card className="relative overflow-hidden border-[var(--border)] p-5 sm:p-7">
+            <div aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-[var(--primary)]" />
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-center">
+              <div className="min-w-0 space-y-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  {courseLabel && <span className="font-mono text-xs font-semibold uppercase tracking-[0.14em] text-[var(--primary)]">{courseLabel}</span>}
+                  <Badge variant={statusVariant[group.status]} size="sm" dot pulse={group.status === "RECRUITING"} mono>
+                    <ScrambleText text={t.groupStatus[group.status]} />
+                  </Badge>
+                </div>
+                <h2 className="text-xl font-bold tracking-tight text-[var(--text-primary)] sm:text-2xl">{group.title}</h2>
+                {group.description && <p className="max-w-3xl whitespace-pre-wrap break-words text-sm leading-6 text-[var(--text-secondary)]">{group.description}</p>}
+                {(group.college || group.department) && <p className="text-sm font-medium text-[var(--text-muted)]">{[group.college, group.department].filter(Boolean).join(" · ")}</p>}
+              </div>
+              <div className="rounded-xl border border-[var(--border-muted)] bg-[var(--surface-container-low)] p-4 sm:p-5">
+                <RoleQuota current={group.memberCount} max={group.maxMembers} label={t.myGroupCard.membersLabel} className="w-full justify-start text-sm" />
+              </div>
             </div>
-            <h2 className="text-lg font-bold tracking-tight text-[var(--text-primary)]">
-              {group.title}
-            </h2>
-            <p className="text-sm whitespace-pre-wrap break-words text-[var(--text-secondary)]">{group.description}</p>
-            <p className="text-sm text-[var(--text-secondary)]">{group.college} · {group.department}</p>
-            <RoleQuota
-              current={group.memberCount}
-              max={group.maxMembers}
-              label={t.myGroupCard.membersLabel}
-            />
           </Card>
 
-          <Card className="space-y-4">
-            <h2 className="font-semibold"><ScrambleText text={t.manageDetails.members} /></h2>
-            {group.members.length === 0 ? <EmptyState text={t.manageDetails.membersEmpty} /> : (
-              <ul className="divide-y divide-[var(--border)]">
-                {group.members.map((member) => (
-                  <li key={member.userId} className="flex items-center gap-3 py-3 min-w-0">
-                    <Avatar name={member.name} size="sm" />
-                    <span className="flex-1 min-w-0 break-words">{member.name}</span>
-                    <Badge variant={member.role === "LEADER" ? "primary" : "neutral"}>
-                      <ScrambleText text={member.role === "LEADER" ? t.myGroupCard.leader : t.myGroupCard.member} />
-                    </Badge>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-          <ManageGroupEditor key={group.id} group={group} onSaved={(updated) => {
-            setData((previous) => previous?.group ? {
-              ...previous,
-              group: {
-                ...previous.group,
-                title: updated.title,
-                description: updated.description,
-                maxMembers: updated.maxMembers,
-                status: updated.status,
-                rolesQuota: updated.rolesQuota,
-                courseCode: updated.courseCode,
-                courseName: updated.courseName,
-                meetingFormat: updated.meetingFormat,
-                tags: updated.tags,
-                contactEmail: updated.contactEmail,
-                contactPhone: updated.contactPhone,
-              },
-            } : previous);
-          }} />
+          <nav aria-label={t.manage.title} className="flex gap-2 overflow-x-auto rounded-xl border border-[var(--border-muted)] bg-[var(--surface)] p-1.5 shadow-(--shadow-level-1)">
+            {[
+              { href: "#members", label: t.manageDetails.members, icon: Users },
+              { href: "#edit-group", label: t.manageDetails.editTitle, icon: SlidersHorizontal },
+              { href: "#applications", label: t.manage.applicationsTitle, icon: ClipboardList },
+            ].map(({ href, label, icon: Icon }) => (
+              <a key={href} href={href} className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg px-3 text-sm font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--primary-soft)] hover:text-[var(--primary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]">
+                <Icon aria-hidden="true" className="h-4 w-4" />
+                <ScrambleText text={label} />
+              </a>
+            ))}
+          </nav>
+
+          <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.65fr)_minmax(17rem,0.8fr)]">
+            <div id="edit-group" className="scroll-mt-6">
+              <ManageGroupEditor
+                key={group.id}
+                group={group}
+                onSaved={(updated) => {
+                  setData((previous) => previous?.group ? {
+                    ...previous,
+                    group: {
+                      ...previous.group,
+                      title: updated.title,
+                      description: updated.description,
+                      maxMembers: updated.maxMembers,
+                      status: updated.status,
+                      rolesQuota: updated.rolesQuota,
+                      courseCode: updated.courseCode,
+                      courseName: updated.courseName,
+                      meetingFormat: updated.meetingFormat,
+                      tags: updated.tags,
+                      contactEmail: updated.contactEmail,
+                      contactPhone: updated.contactPhone,
+                    },
+                  } : previous);
+                }}
+              />
+            </div>
+
+            <Card id="members" className="scroll-mt-6 min-w-0 space-y-3 p-4 sm:p-5">
+              <div className="flex items-center justify-between gap-3 border-b border-[var(--border-muted)] pb-3">
+                <h2 className="font-semibold tracking-tight"><ScrambleText text={t.manageDetails.members} /></h2>
+                <Badge variant="neutral" size="sm" mono>{group.members.length}</Badge>
+              </div>
+              {group.members.length === 0 ? <EmptyState text={t.manageDetails.membersEmpty} /> : (
+                <ul className="divide-y divide-[var(--border-muted)]">
+                  {group.members.map((member) => (
+                    <li key={member.userId} className="flex min-w-0 items-center gap-3 py-3 first:pt-1 last:pb-1">
+                      <Avatar name={member.name} size="sm" />
+                      <span className="min-w-0 flex-1 break-words text-sm font-medium">{member.name}</span>
+                      <Badge size="sm" variant={member.role === "LEADER" ? "primary" : "neutral"}>
+                        <ScrambleText text={member.role === "LEADER" ? t.myGroupCard.leader : t.myGroupCard.member} />
+                      </Badge>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Card>
+          </div>
 
           {/* Pending applications */}
-          <section className="space-y-4">
-            <div className="flex items-center gap-2">
+          <section id="applications" className="scroll-mt-6 space-y-4">
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--border-muted)] pb-3">
               <h2 className="text-base font-semibold tracking-tight text-[var(--text-primary)]">
                 <ScrambleText text={t.manage.applicationsTitle} />
               </h2>
-              <Badge variant="neutral" size="sm" mono>
+              <Badge variant={pendingApplications.length ? "primary" : "neutral"} size="sm" mono>
                 {pendingApplications.length}
               </Badge>
             </div>
