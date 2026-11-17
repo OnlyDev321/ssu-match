@@ -13,6 +13,12 @@ import type { ChatMessage, ConversationSummary } from "@/lib/types";
 
 const timeLabel = (value?: string | null) => value ? new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "";
 
+function appendMessageOnce(current: Record<number, ChatMessage[]>, message: ChatMessage) {
+  const messages = current[message.conversationId] || [];
+  if (messages.some((item) => item.id === message.id)) return current;
+  return { ...current, [message.conversationId]: [...messages, message] };
+}
+
 export default function MessengerDropdown() {
   const { t } = useLanguageStore();
   const copy = t.messenger;
@@ -69,8 +75,8 @@ export default function MessengerDropdown() {
 
     setMessagesByConversation((current) => {
       const messages = current[message.conversationId];
-      if (!messages || messages.some((item) => item.id === message.id)) return current;
-      return { ...current, [message.conversationId]: [...messages, message] };
+      if (!messages) return current;
+      return appendMessageOnce(current, message);
     });
 
     const cached = getQuerySnapshot<ConversationSummary[]>(cacheKey).data;
@@ -120,7 +126,7 @@ export default function MessengerDropdown() {
     try {
       setSendingConversation(conversation.id);
       const message = await sendConversationMessage(conversation.id, content);
-      setMessagesByConversation((current) => ({ ...current, [conversation.id]: [...(current[conversation.id] || []), message] }));
+      setMessagesByConversation((current) => appendMessageOnce(current, message));
       setDraftByConversation((current) => ({ ...current, [conversation.id]: "" }));
       conversationsQuery.setData((current) => (current ?? []).map((item) => item.id === conversation.id
         ? { ...item, lastMessage: message, updatedAt: message.createdAt }
