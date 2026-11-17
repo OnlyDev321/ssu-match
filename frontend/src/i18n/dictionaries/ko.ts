@@ -441,7 +441,7 @@ export const ko: TranslationDict = {
     contactEmailPlaceholder: "you@example.com",
     publishEmailLabel: "이 이메일을 그룹 페이지에 공개",
     contactPhoneLabel: "연락처 전화번호 (선택)",
-    contactPhonePlaceholder: "+82 10 1234 5678",
+    contactPhonePlaceholder: "010-1234-5678",
     publishPhoneLabel: "이 전화번호를 그룹 페이지에 공개",
     academicInfoTitle: "교과목 및 학사 연계",
     academicInfoSubtitle:

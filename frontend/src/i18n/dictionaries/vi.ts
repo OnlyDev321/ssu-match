@@ -452,7 +452,7 @@ export const vi: TranslationDict = {
     contactEmailPlaceholder: "ban@example.com",
     publishEmailLabel: "Hiển thị email này công khai trên trang nhóm",
     contactPhoneLabel: "Số điện thoại liên hệ (tùy chọn)",
-    contactPhonePlaceholder: "+82 10 1234 5678",
+    contactPhonePlaceholder: "010-1234-5678",
     publishPhoneLabel: "Hiển thị số này công khai trên trang nhóm",
     academicInfoTitle: "Môn học & Học vụ liên quan",
     academicInfoSubtitle:

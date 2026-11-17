@@ -456,7 +456,7 @@ export const en = {
     contactEmailPlaceholder: "you@example.com",
     publishEmailLabel: "Show this email on the public group page",
     contactPhoneLabel: "Contact phone (optional)",
-    contactPhonePlaceholder: "+82 10 1234 5678",
+    contactPhonePlaceholder: "010-1234-5678",
     publishPhoneLabel: "Show this number on the public group page",
     academicInfoTitle: "Academic & Course Context",
     academicInfoSubtitle:

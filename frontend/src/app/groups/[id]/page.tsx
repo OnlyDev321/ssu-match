@@ -37,6 +37,15 @@ import { useLanguageStore } from "@/stores/languageStore";
 import { useAuthStore } from "@/stores/authStore";
 import type { GroupDetailPageProps } from "@/lib/types";
 
+const formatKoreanMobileForDisplay = (phone: string): string => {
+  const digits = phone.replace(/\D/g, "");
+  const nationalNumber = digits.startsWith("82") ? digits.slice(2) : digits;
+  const localNumber = nationalNumber.startsWith("0") ? nationalNumber : `0${nationalNumber}`;
+
+  if (!/^010\d{8}$/.test(localNumber)) return phone;
+  return `${localNumber.slice(0, 3)}-${localNumber.slice(3, 7)}-${localNumber.slice(7)}`;
+};
+
 export default function GroupDetailPage({ params }: GroupDetailPageProps) {
   const { id } = use(params);
   const { t, language } = useLanguageStore();
@@ -562,7 +571,7 @@ export default function GroupDetailPage({ params }: GroupDetailPageProps) {
                   className="inline-flex items-center justify-center gap-2 w-full py-2 px-3 rounded-xl text-xs font-medium text-[var(--text-secondary)] bg-[var(--surface-container-low)] border border-[var(--border)] hover:bg-[var(--surface-container)] hover:text-[var(--text-primary)] transition-colors min-w-0 overflow-hidden"
                 >
                   <Phone className="w-3.5 h-3.5 text-[var(--primary)] shrink-0" />
-                  <span className="truncate">{group.contactPhone}</span>
+                  <span className="truncate">{formatKoreanMobileForDisplay(group.contactPhone)}</span>
                 </a>
               )}
             </Card>
