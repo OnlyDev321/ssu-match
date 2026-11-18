@@ -283,7 +283,7 @@ export default function GroupDetailPage({ params }: GroupDetailPageProps) {
                   description: group.longDescription || group.description,
                   rolesQuota: group.rolesQuota?.map((r) => ({
                     role: r.role,
-                    description: r.description,
+                    ...(typeof r.description === "string" && { description: r.description }),
                   })),
                 }}
                 onTranslated={(translated) => setTranslation(translated ? { ...translated, context: translationContext } : null)}
