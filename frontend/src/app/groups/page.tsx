@@ -118,7 +118,7 @@ const GroupPage = () => {
     `private:${userId}:groups`, loadMyGroups, isReady && userId !== null, 30_000,
   );
   const loadMyApplications = useCallback(() => getMyApplications(), []);
-  const { status: applicationStatus, data: myApplications, reload: reloadApplications } = useCachedServiceData(
+  const { status: applicationStatus, data: myApplications, errorCode: applicationError, reload: reloadApplications } = useCachedServiceData(
     `private:${userId}:applications`, loadMyApplications, isReady && userId !== null, 30_000,
   );
   const joinedGroupIds = useMemo(() => new Set((myGroups ?? []).map((group) => group.id)), [myGroups]);
@@ -614,7 +614,7 @@ const GroupPage = () => {
         <ErrorState title={t.manage.groupsError} message={t.apiErrors[membershipError ?? "SERVER_ERROR"]} retryLabel={t.manage.retry} onRetry={reloadMembership} />
       )}
       {applicationStatus === "error" && (
-        <ErrorState title={t.manage.groupsError} message={t.apiErrors["SERVER_ERROR"]} retryLabel={t.manage.retry} onRetry={reloadApplications} />
+        <ErrorState title={t.manage.groupsError} message={t.apiErrors[applicationError ?? "SERVER_ERROR"]} retryLabel={t.manage.retry} onRetry={reloadApplications} />
       )}
       {status === "loading" ? <CardSkeletonList count={ITEMS_PER_PAGE} /> : status === "error" ? (
         <ErrorState title={t.groupsPage.noResultsTitle} message={t.apiErrors[errorCode ?? "SERVER_ERROR"]} retryLabel={t.groupsPage.resetFiltersBtn} onRetry={reload} />

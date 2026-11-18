@@ -7,9 +7,11 @@ import { useAuthStore } from "@/stores/authStore";
 import { useLanguageStore } from "@/stores/languageStore";
 import { ShieldCheck, User, Lock, AlertCircle } from "lucide-react";
 import { BrandLogo } from "@/components/layout/BrandLogo";
+import { useRouter } from "next/navigation";
 
 export default function LoginModal() {
-  const { isLoginModalOpen, closeLoginModal, login } = useAuthStore();
+  const router = useRouter();
+  const { isLoginModalOpen, closeLoginModal, login, redirectAfterLogin } = useAuthStore();
   const { t } = useLanguageStore();
   const [studentId, setStudentId] = useState("");
   const [password, setPassword] = useState("");
@@ -71,6 +73,7 @@ export default function LoginModal() {
       // Clear form on success
       setStudentId("");
       setPassword("");
+      if (redirectAfterLogin) router.push(redirectAfterLogin);
     }
   };
 

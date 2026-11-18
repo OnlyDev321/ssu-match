@@ -58,6 +58,15 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
     try {
       body = await response.json();
     } catch {}
+
+    // JWT được lưu ở localStorage có thể hết hạn khi người dùng để trang mở lâu.
+    // Xóa phiên cũ và mở đăng nhập lại, giữ trang hiện tại làm đích quay về.
+    if (response.status === 401 && token && typeof window !== "undefined") {
+      const auth = useAuthStore.getState();
+      auth.logout();
+      auth.openLoginModal(`${window.location.pathname}${window.location.search}`);
+    }
+
     throw new ApiError(errorCodeFromStatus(response.status), response.status, body?.message);
   }
 
