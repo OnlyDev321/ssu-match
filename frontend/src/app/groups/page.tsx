@@ -13,10 +13,10 @@ import {
   Search,
   ExternalLink,
 } from "lucide-react";
-import GroupCard from "@/components/group/GroupCard";
+import GroupCard, { GroupCardSkeleton } from "@/components/group/GroupCard";
 import ApplyModal from "@/components/application/ApplyModal";
 import { Card, SearchInput, Button, Badge } from "@/design-system";
-import { CardSkeletonList, ErrorState } from "@/components/common/AsyncState";
+import { ErrorState } from "@/components/common/AsyncState";
 import { useCachedServiceData, useDebounce } from "@/lib/hooks";
 import type { AcademicCatalog, GroupCardData, GroupDetailData } from "@/lib/types";
 import { useRequireLogin } from "@/lib/hooks";
@@ -616,7 +616,11 @@ const GroupPage = () => {
       {applicationStatus === "error" && (
         <ErrorState title={t.manage.groupsError} message={t.apiErrors[applicationError ?? "SERVER_ERROR"]} retryLabel={t.manage.retry} onRetry={reloadApplications} />
       )}
-      {status === "loading" ? <CardSkeletonList count={ITEMS_PER_PAGE} /> : status === "error" ? (
+      {status === "loading" ? (
+        <div className="responsive-card-grid" role="status" aria-busy="true">
+          {Array.from({ length: ITEMS_PER_PAGE }, (_, index) => <GroupCardSkeleton key={index} />)}
+        </div>
+      ) : status === "error" ? (
         <ErrorState title={t.groupsPage.noResultsTitle} message={t.apiErrors[errorCode ?? "SERVER_ERROR"]} retryLabel={t.groupsPage.resetFiltersBtn} onRetry={reload} />
       ) : paginatedGroups.length > 0 ? (
         <div className="space-y-6">

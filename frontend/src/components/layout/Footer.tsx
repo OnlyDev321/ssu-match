@@ -2,9 +2,12 @@
 
 import { usePathname } from "next/navigation";
 import { BrandLogo } from "@/components/layout/BrandLogo";
+import { ScrambleText } from "@/design-system/components/ScrambleText";
+import { useLanguageStore } from "@/stores/languageStore";
 
 export default function Footer() {
   const pathname = usePathname();
+  const { t } = useLanguageStore();
 
   // Footer chỉ xuất hiện ở Landing Page ("/")
   if (pathname !== "/") {
@@ -17,8 +20,7 @@ export default function Footer() {
         <div className="flex items-center gap-3">
           <BrandLogo size={24} />
           <span className="text-xs text-[var(--text-muted)]">
-            © {new Date().getFullYear()} SSUMatch. University Academic
-            Productivity System.
+            <ScrambleText text={t.footer.copyright.replace("{year}", String(new Date().getFullYear()))} />
           </span>
         </div>
       </div>

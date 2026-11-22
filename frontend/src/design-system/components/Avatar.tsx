@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 
 export type AvatarSize = "xs" | "sm" | "md" | "lg" | "xl";
 
@@ -36,7 +37,14 @@ export function Avatar({ src, name = "", size = "md", className = "" }: AvatarPr
       title={name}
     >
       {src ? (
-        <img src={src} alt={name || "Avatar"} className="w-full h-full object-cover" />
+        <Image
+          src={src}
+          alt={name || "Avatar"}
+          fill
+          unoptimized
+          sizes="64px"
+          className="object-cover"
+        />
       ) : (
         <span>{initials}</span>
       )}

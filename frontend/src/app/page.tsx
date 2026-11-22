@@ -98,7 +98,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto space-y-14">
           <div className="text-center space-y-3">
             <Badge variant="primary" size="md">
-              CORE FEATURES
+              <ScrambleText text={t.landing.coreFeaturesBadge} />
             </Badge>
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-[var(--text-primary)]">
               <ScrambleText text={t.landing.coreFeaturesTitle} />

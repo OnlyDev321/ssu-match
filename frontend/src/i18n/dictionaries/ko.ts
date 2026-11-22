@@ -1,6 +1,9 @@
 import { TranslationDict } from "./en";
 
 export const ko: TranslationDict = {
+  footer: {
+    copyright: "© {year} SSUMatch. 대학 학업 생산성 플랫폼.",
+  },
   common: {
     closeDialog: "대화상자 닫기",
   },
@@ -158,6 +161,7 @@ export const ko: TranslationDict = {
     trustBadge1: "100% 숭실대 재학생 인증",
     trustBadge2: "비밀번호 무저장 원칙",
     trustBadge3: "학과 & 전공 맞춤 매칭",
+    coreFeaturesBadge: "핵심 기능",
     coreFeaturesTitle: "왜 숭실대 학생들은 SSUMatch를 선택할까요?",
     coreFeaturesSubtitle:
       "익명 커뮤니티의 잠수, 무임승차, 허위 프로필 문제를 원천 차단하고 학업에만 집중할 수 있는 환경을 만듭니다.",

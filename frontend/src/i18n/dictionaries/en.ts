@@ -1,4 +1,7 @@
 export const en = {
+  footer: {
+    copyright: "© {year} SSUMatch. University Academic Productivity System.",
+  },
   common: {
     closeDialog: "Close dialog",
   },
@@ -155,6 +158,7 @@ export const en = {
     trustBadge1: "100% Real Soongsil Students",
     trustBadge2: "Zero Password Retention",
     trustBadge3: "Major & Skill Matchmaking",
+    coreFeaturesBadge: "Core Features",
     coreFeaturesTitle: "Why Soongsil Students Choose SSUMatch",
     coreFeaturesSubtitle:
       "Eliminating anonymous chat ghosting, free-riders, and mismatched skill sets so you can focus entirely on learning.",

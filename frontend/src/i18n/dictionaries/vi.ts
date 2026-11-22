@@ -1,6 +1,9 @@
 import { TranslationDict } from "./en";
 
 export const vi: TranslationDict = {
+  footer: {
+    copyright: "© {year} SSUMatch. Nền tảng nâng cao hiệu quả học tập đại học.",
+  },
   common: {
     closeDialog: "Đóng hộp thoại",
   },
@@ -162,6 +165,7 @@ export const vi: TranslationDict = {
     trustBadge1: "100% Sinh viên Soongsil",
     trustBadge2: "Không lưu trữ mật khẩu",
     trustBadge3: "Khớp nối ngành & kỹ năng",
+    coreFeaturesBadge: "Tính năng cốt lõi",
     coreFeaturesTitle: "Vì sao sinh viên Soongsil tin chọn SSUMatch?",
     coreFeaturesSubtitle:
       "Chấm dứt nỗi lo bùng nhóm, tài khoản ẩn danh, lệch kỹ năng để bạn an tâm tập trung học tập.",

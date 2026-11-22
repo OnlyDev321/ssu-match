@@ -131,4 +131,40 @@ const GroupCard = ({ group, isMember, isPendingApplication, membershipReady, onJ
   );
 };
 
+export const GroupCardSkeleton = () => (
+  <div
+    aria-hidden="true"
+    className="h-full min-h-[350px] flex flex-col gap-4 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-6 animate-pulse"
+  >
+    <div className="flex items-center justify-between gap-3">
+      <div className="h-6 w-24 rounded-full bg-[var(--surface-container)]" />
+      <div className="h-6 w-20 rounded-full bg-[var(--surface-container)]" />
+    </div>
+    <div className="space-y-2">
+      <div className="h-5 w-4/5 rounded bg-[var(--surface-container)]" />
+      <div className="h-3 w-full rounded bg-[var(--surface-container)]" />
+      <div className="h-3 w-2/3 rounded bg-[var(--surface-container)]" />
+    </div>
+    <div className="flex flex-1 content-start flex-wrap gap-1.5">
+      <div className="h-6 w-20 rounded-md bg-[var(--surface-container)]" />
+      <div className="h-6 w-24 rounded-md bg-[var(--surface-container)]" />
+      <div className="h-6 w-16 rounded-md bg-[var(--surface-container)]" />
+    </div>
+    <div className="flex items-center justify-between border-t border-[var(--border-muted)] pt-3">
+      <div className="flex items-center gap-2.5">
+        <div className="h-10 w-10 rounded-full bg-[var(--surface-container)]" />
+        <div className="space-y-2">
+          <div className="h-3 w-24 rounded bg-[var(--surface-container)]" />
+          <div className="h-2.5 w-16 rounded bg-[var(--surface-container)]" />
+        </div>
+      </div>
+      <div className="h-4 w-16 rounded bg-[var(--surface-container)]" />
+    </div>
+    <div className="grid grid-cols-2 gap-2.5 pt-1">
+      <div className="h-10 rounded-lg bg-[var(--surface-container)]" />
+      <div className="h-10 rounded-lg bg-[var(--surface-container)]" />
+    </div>
+  </div>
+);
+
 export default GroupCard;
