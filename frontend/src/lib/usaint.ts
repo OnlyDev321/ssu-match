@@ -382,37 +382,71 @@ async function loadTimetable(sessionCookies: string, requestedTerm?: TimetableTe
     }
   }
 
-  // Bảng thời khóa biểu: SapTable có tiêu đề "시간, 월, 화, 수, 목, 금, 토".
-  let table: SapTable | null = null;
-  let headers: string[] = [];
-  wda.$('[ct="ST"]').each((_, el) => {
-    const id = wda.$(el).attr("id");
-    const candidate = !table && id ? wda.getControlById<SapTable>(id) : null;
-    const candidateHeaders = candidate ? candidate.getHeaders() : [];
-    if (candidate && candidateHeaders.includes("시간") && candidateHeaders.includes("월")) {
-      table = candidate;
-      headers = candidateHeaders;
+  const readCurrentTerm = (fallbackTerm: TimetableTerm) => {
+    // Kỳ mới đôi khi chỉ hiện thông báo "수강신청 자료가 없습니다" và không tạo control bảng.
+    // Vẫn kiểm tra thông báo trước khi trả lỗi để luồng đăng nhập có thể dò kỳ trước.
+    let table: SapTable | null = null;
+    let headers: string[] = [];
+    wda.$('[ct="ST"]').each((_, el) => {
+      const id = wda.$(el).attr("id");
+      const candidate = !table && id ? wda.getControlById<SapTable>(id) : null;
+      const candidateHeaders = candidate ? candidate.getHeaders() : [];
+      if (candidate && candidateHeaders.includes("시간") && candidateHeaders.includes("월")) {
+        table = candidate;
+        headers = candidateHeaders;
+      }
+    });
+    const found = table as SapTable | null;
+    if (!found) {
+      const pageText = wda.$("body").text().replace(/\s+/g, " ");
+      if (/수강신청\s*자료가\s*없습니다/.test(pageText)) {
+        return { ok: false as const, reason: "no timetable data for selected term" };
+      }
+      return { ok: false as const, reason: "timetable table not found" };
     }
-  });
-  const found = table as SapTable | null;
-  if (!found) return { ok: false, reason: "timetable table not found" };
 
-  const tableNode = wda.$(`[id="${found.id}"]`).get(0) as unknown as TimetableDomNode | undefined;
-  if (!tableNode) return { ok: false, reason: "timetable table element missing" };
-
-  const readCurrentTerm = () => {
-    const activeTerm = readTimetableTerm(wda) ?? term;
-    const activeTable = wda.getControlById<SapTable>(found.id) ?? found;
-    const activeNode = wda.$(`[id="${activeTable.id}"]`).get(0) as unknown as TimetableDomNode | undefined;
+    const activeTerm = readTimetableTerm(wda) ?? fallbackTerm;
+    const activeNode = wda.$(`[id="${found.id}"]`).get(0) as unknown as TimetableDomNode | undefined;
     if (!activeNode) return { ok: false as const, reason: "timetable table element missing" };
     return parseTimetableCells(extractTimetableCells(activeNode, headers), headers, {
       term: activeTerm,
-      expectedRows: activeTable.getTotalRowCount(),
+      expectedRows: found.getTotalRowCount(),
       fetchedAt: new Date().toISOString(),
     });
   };
-  const initial = readCurrentTerm();
-  if (!initial.ok) return initial;
+  const initial = readCurrentTerm(term);
+  if (!initial.ok && (requestedTerm || !["no timetable data for selected term", "timetable table not found"].includes(initial.reason))) return initial;
+  if (!initial.ok) {
+    // Không có bảng cho kỳ hiện tại: dò ngược cho đến kỳ đầu tiên có lịch hợp lệ.
+    const candidates = buildPreviousTerms(selectors.years, selectors.semesters, term);
+    for (const candidate of candidates) {
+      const yearCombo = wda.getControlById<SapComboBox>(selectors.yearId);
+      const semesterCombo = wda.getControlById<SapComboBox>(selectors.semesterId);
+      if (!yearCombo || !semesterCombo) return { ok: false, reason: "year/semester selectors unavailable" };
+      if (yearCombo.selectedKey !== candidate.yearKey) {
+        const yearChange = await yearCombo.selectByKey(candidate.yearKey);
+        if (!yearChange.isSuccess) return { ok: false, reason: "year selection failed" };
+      }
+      const refreshedSemester = wda.getControlById<SapComboBox>(selectors.semesterId);
+      if (!refreshedSemester) return { ok: false, reason: "semester selector unavailable" };
+      if (refreshedSemester.selectedKey !== candidate.semesterKey) {
+        const semesterChange = await refreshedSemester.selectByKey(candidate.semesterKey);
+        if (!semesterChange.isSuccess) return { ok: false, reason: "semester selection failed" };
+      }
+      const result = readCurrentTerm(candidate);
+      if (
+        !result.ok &&
+        result.reason !== "no timetable data for selected term" &&
+        result.reason !== "timetable table not found"
+      ) {
+        return result;
+      }
+      if (result.ok && result.timetable.courses.length > 0) {
+        return { ...result, timetables: [result.timetable], availableTerms };
+      }
+    }
+    return initial;
+  }
   if (requestedTerm || initial.timetable.courses.length > 0) {
     return { ...initial, timetables: [initial.timetable], availableTerms };
   }
@@ -433,8 +467,11 @@ async function loadTimetable(sessionCookies: string, requestedTerm?: TimetableTe
       const semesterChange = await refreshedSemester.selectByKey(candidate.semesterKey);
       if (!semesterChange.isSuccess) return { ok: false, reason: "semester selection failed" };
     }
-    const result = readCurrentTerm();
-    if (!result.ok) return result;
+    const result = readCurrentTerm(candidate);
+    if (!result.ok) {
+      if (result.reason === "no timetable data for selected term" || result.reason === "timetable table not found") continue;
+      return result;
+    }
     if (result.timetable.courses.length > 0) {
       return { ...result, timetables: [result.timetable], availableTerms };
     }
