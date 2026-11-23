@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import type { StudentProfile, AuthState, TimetableStatus, TimetableTerm } from "@/lib/types";
+import type { StudentProfile, StudentTimetable, AuthState, TimetableStatus, TimetableTerm } from "@/lib/types";
 import { normalizeStudentTimetable } from "@/lib/timetableParser";
 import { useLanguageStore } from "@/stores/languageStore";
 import { clearCachedQueries } from "@/lib/queryCache";
@@ -89,7 +89,9 @@ export const useAuthStore = create<AuthState>()(
           const timetable =
             data.timetableStatus === "success" ? normalizeStudentTimetable(data.timetable) : null;
           const timetables = Array.isArray(data.timetables)
-            ? data.timetables.map(normalizeStudentTimetable).filter((item): item is NonNullable<typeof item> => item !== null)
+            ? data.timetables
+                .map((item: unknown) => normalizeStudentTimetable(item))
+                .filter((item: StudentTimetable | null): item is StudentTimetable => item !== null)
             : timetable ? [timetable] : [];
           const timetableTerms = Array.isArray(data.timetableTerms)
             ? data.timetableTerms.filter((item: unknown): item is TimetableTerm =>
