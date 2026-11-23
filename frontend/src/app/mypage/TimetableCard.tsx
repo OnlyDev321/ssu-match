@@ -8,6 +8,7 @@ import {
   CalendarOff,
   CalendarSync,
   Check,
+  ChevronDown,
   Info,
   LogIn,
   MapPin,
@@ -598,34 +599,40 @@ const TimetableCard = () => {
           {registeredYears.length > 1 && (
             <label className="flex items-center gap-2 text-xs font-medium text-(--text-secondary)">
               <span>{t.timetable.academicYearLabel}</span>
-              <select
-                aria-label={t.timetable.academicYearLabel}
-                disabled={timetableLoadingTerm !== null}
-                className="h-9 max-w-36 rounded-(--radius-button) border border-(--border) bg-(--surface) px-3 text-sm text-(--text-primary) outline-none transition-colors focus-visible:border-(--primary) focus-visible:ring-2 focus-visible:ring-(--primary-soft) disabled:opacity-60"
-                value={activeYear}
-                onChange={(event) => {
-                  const nextYear = event.target.value;
-                  const firstTerm = registeredTerms.find((term) => term.yearKey === nextYear);
-                  setSelectedYear(nextYear);
-                  if (firstTerm) setSelectedTermKey(termKey(firstTerm));
-                }}
-              >
-                {registeredYears.map((term) => <option key={term.yearKey} value={term.yearKey}>{term.yearLabel}</option>)}
-              </select>
+              <span className="relative inline-flex">
+                <select
+                  aria-label={t.timetable.academicYearLabel}
+                  disabled={timetableLoadingTerm !== null}
+                  className="h-9 max-w-36 appearance-none rounded-(--radius-button) border border-(--border) bg-(--surface) py-0 pl-3 pr-10 text-sm text-(--text-primary) outline-none transition-colors focus-visible:border-(--primary) focus-visible:ring-2 focus-visible:ring-(--primary-soft) disabled:opacity-60"
+                  value={activeYear}
+                  onChange={(event) => {
+                    const nextYear = event.target.value;
+                    const firstTerm = registeredTerms.find((term) => term.yearKey === nextYear);
+                    setSelectedYear(nextYear);
+                    if (firstTerm) setSelectedTermKey(termKey(firstTerm));
+                  }}
+                >
+                  {registeredYears.map((term) => <option key={term.yearKey} value={term.yearKey}>{term.yearLabel}</option>)}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-(--text-secondary)" aria-hidden="true" />
+              </span>
             </label>
           )}
           {yearTerms.length > 1 && (
             <label className="flex items-center gap-2 text-xs font-medium text-(--text-secondary)">
               <span>{t.timetable.semesterLabel}</span>
-              <select
-                aria-label={t.timetable.semesterLabel}
-                disabled={timetableLoadingTerm !== null}
-                className="h-9 max-w-40 rounded-(--radius-button) border border-(--border) bg-(--surface) px-3 text-sm text-(--text-primary) outline-none transition-colors focus-visible:border-(--primary) focus-visible:ring-2 focus-visible:ring-(--primary-soft) disabled:opacity-60"
-                value={activeTermKey}
-                onChange={(event) => setSelectedTermKey(event.target.value)}
-              >
-                {yearTerms.map((term) => <option key={termKey(term)} value={termKey(term)}>{term.semesterLabel}</option>)}
-              </select>
+              <span className="relative inline-flex">
+                <select
+                  aria-label={t.timetable.semesterLabel}
+                  disabled={timetableLoadingTerm !== null}
+                  className="h-9 max-w-40 appearance-none rounded-(--radius-button) border border-(--border) bg-(--surface) py-0 pl-3 pr-10 text-sm text-(--text-primary) outline-none transition-colors focus-visible:border-(--primary) focus-visible:ring-2 focus-visible:ring-(--primary-soft) disabled:opacity-60"
+                  value={activeTermKey}
+                  onChange={(event) => setSelectedTermKey(event.target.value)}
+                >
+                  {yearTerms.map((term) => <option key={termKey(term)} value={termKey(term)}>{term.semesterLabel}</option>)}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-(--text-secondary)" aria-hidden="true" />
+              </span>
             </label>
           )}
           <Button
