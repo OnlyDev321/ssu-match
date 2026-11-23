@@ -45,6 +45,18 @@ export async function POST(request: NextRequest) {
     const { sessionCookies } = await sessionResponse.json();
     const result = await fetchTimetableTermFromSap(sessionCookies, term);
     if (!result.ok) {
+      if (result.reason === "no timetable data for selected term") {
+        return NextResponse.json({
+          success: true,
+          timetable: {
+            term,
+            periods: [],
+            hasSaturday: false,
+            courses: [],
+            fetchedAt: new Date().toISOString(),
+          },
+        });
+      }
       return NextResponse.json({ success: false, errorCode: "TIMETABLE_UNAVAILABLE" }, { status: 502 });
     }
     return NextResponse.json({ success: true, timetable: result.timetable });

@@ -7,12 +7,14 @@ import {
   CalendarDays,
   CalendarOff,
   CalendarSync,
+  Check,
   Info,
   LogIn,
   MapPin,
+  Search,
   UserRound,
 } from "lucide-react";
-import { Badge, Button, Card } from "@/design-system";
+import { Badge, Button, Card, Modal } from "@/design-system";
 import { formatMessage, formatSeoulDateTime } from "@/lib/format";
 import {
   buildBlocksByDay,
@@ -29,6 +31,7 @@ import type {
   TimetableDay,
   TimetableSkeletonProps,
   TimetableStatePanelProps,
+  TimetableTerm,
   TimetableViewProps,
 } from "@/lib/types";
 
@@ -396,19 +399,93 @@ const TimetableCard = () => {
   const { timetable, timetables, timetableTerms, timetableLoadingTerm, timetableTermError, loadTimetableTerm, timetableStatus, openLoginModal } = useAuthStore();
   const [selectedYear, setSelectedYear] = useState("");
   const [selectedTermKey, setSelectedTermKey] = useState("");
+  const [isTermBrowserOpen, setIsTermBrowserOpen] = useState(false);
+  const [browseYear, setBrowseYear] = useState("");
+  const [browseTermKey, setBrowseTermKey] = useState("");
+  const [browseFeedback, setBrowseFeedback] = useState<"empty" | "error" | null>(null);
 
   const signInAgain = () => openLoginModal("/mypage");
   const availableTimetables = timetables.length ? timetables : timetable ? [timetable] : [];
-  const years = [...new Map(timetableTerms.map((term) => [term.yearKey, term])).values()];
-  const activeYear = years.some((term) => term.yearKey === selectedYear) ? selectedYear : timetable?.term.yearKey ?? years[0]?.yearKey ?? "";
-  const yearTerms = timetableTerms.filter((term) => term.yearKey === activeYear);
-  const semesters = [...new Map(yearTerms.map((term) => [term.semesterKey, term])).values()];
-  const activeTermKey = yearTerms.some((term) => `${term.yearKey}:${term.semesterKey}` === selectedTermKey)
+  const termKey = (term: Pick<TimetableTerm, "yearKey" | "semesterKey">) => `${term.yearKey}:${term.semesterKey}`;
+  const semesterOrder = new Map<string, number>();
+  timetableTerms.forEach((term) => {
+    if (!semesterOrder.has(term.semesterKey)) semesterOrder.set(term.semesterKey, semesterOrder.size);
+  });
+  const compareTermsNewestFirst = (a: TimetableTerm, b: TimetableTerm) =>
+    Number(b.yearKey) - Number(a.yearKey) ||
+    (semesterOrder.get(b.semesterKey) ?? 0) - (semesterOrder.get(a.semesterKey) ?? 0);
+  const candidateTerms = [...new Map(timetableTerms.map((term) => [termKey(term), term])).values()];
+  const registeredTimetables = availableTimetables.filter((item) => item.courses.length > 0);
+  const registeredTerms = [...new Map(registeredTimetables.map((item) => [termKey(item.term), item.term])).values()]
+    .sort(compareTermsNewestFirst);
+  const registeredYears = [...new Map(registeredTerms.map((term) => [term.yearKey, term])).values()]
+    .sort((a, b) => Number(b.yearKey) - Number(a.yearKey));
+  const activeYear = registeredYears.some((term) => term.yearKey === selectedYear)
+    ? selectedYear
+    : registeredYears[0]?.yearKey ?? timetable?.term.yearKey ?? "";
+  const yearTerms = registeredTerms.filter((term) => term.yearKey === activeYear);
+  const activeTermKey = yearTerms.some((term) => termKey(term) === selectedTermKey)
     ? selectedTermKey
-    : timetable ? `${timetable.term.yearKey}:${timetable.term.semesterKey}` : yearTerms[0] ? `${yearTerms[0].yearKey}:${yearTerms[0].semesterKey}` : "";
+    : yearTerms[0] ? termKey(yearTerms[0]) : timetable ? termKey(timetable.term) : "";
   const loaded = timetableStatus === "success"
-    ? availableTimetables.find((item) => `${item.term.yearKey}:${item.term.semesterKey}` === activeTermKey) ?? null
+    ? availableTimetables.find((item) => termKey(item.term) === activeTermKey) ?? null
     : null;
+  const referenceTerm = registeredTerms[0] ?? timetable?.term ?? candidateTerms[0];
+  const referencePosition = referenceTerm
+    ? Number(referenceTerm.yearKey) * 10 + (semesterOrder.get(referenceTerm.semesterKey) ?? 0)
+    : null;
+  const historicalTerms = candidateTerms
+    .filter((term) => referencePosition === null || Number(term.yearKey) * 10 + (semesterOrder.get(term.semesterKey) ?? 0) <= referencePosition)
+    .sort(compareTermsNewestFirst);
+  const futureTerms = candidateTerms
+    .filter((term) => referencePosition !== null && Number(term.yearKey) * 10 + (semesterOrder.get(term.semesterKey) ?? 0) > referencePosition)
+    .sort((a, b) => Number(a.yearKey) - Number(b.yearKey) || (semesterOrder.get(a.semesterKey) ?? 0) - (semesterOrder.get(b.semesterKey) ?? 0));
+  const browseTerms = [...historicalTerms, ...futureTerms];
+  const browseYears = [...new Map(browseTerms.map((term) => [term.yearKey, term])).values()];
+  const browseSemesters = browseTerms.filter((term) => term.yearKey === browseYear);
+  const browseTerm = browseTerms.find((term) => termKey(term) === browseTermKey) ?? null;
+  const hasRegisteredTerm = (key: string) => registeredTerms.some((term) => termKey(term) === key);
+  const openTermBrowser = () => {
+    const nextTerm = browseTerms.find((term) => !availableTimetables.some((item) => termKey(item.term) === termKey(term)))
+      ?? browseTerms[0];
+    setBrowseYear(nextTerm?.yearKey ?? "");
+    setBrowseTermKey(nextTerm ? termKey(nextTerm) : "");
+    setBrowseFeedback(null);
+    setIsTermBrowserOpen(true);
+  };
+  const chooseBrowseYear = (yearKey: string) => {
+    const firstTerm = browseTerms.find((term) => term.yearKey === yearKey);
+    setBrowseYear(yearKey);
+    setBrowseTermKey(firstTerm ? termKey(firstTerm) : "");
+    setBrowseFeedback(null);
+  };
+  const loadBrowseTerm = async () => {
+    if (!browseTerm) return;
+    setBrowseFeedback(null);
+    const cached = useAuthStore.getState().timetables.find((item) => termKey(item.term) === termKey(browseTerm));
+    if (cached) {
+      if (cached.courses.length > 0) {
+        setSelectedYear(cached.term.yearKey);
+        setSelectedTermKey(termKey(cached.term));
+        setIsTermBrowserOpen(false);
+      } else {
+        setBrowseFeedback("empty");
+      }
+      return;
+    }
+
+    const succeeded = await loadTimetableTerm(browseTerm);
+    const result = useAuthStore.getState().timetables.find((item) => termKey(item.term) === termKey(browseTerm));
+    if (!succeeded || !result) {
+      setBrowseFeedback("error");
+    } else if (result.courses.length === 0) {
+      setBrowseFeedback("empty");
+    } else {
+      setSelectedYear(result.term.yearKey);
+      setSelectedTermKey(termKey(result.term));
+      setIsTermBrowserOpen(false);
+    }
+  };
   const termLabel = loaded
     ? formatMessage(t.timetable.term, {
         year: loaded.term.yearKey,
@@ -488,6 +565,7 @@ const TimetableCard = () => {
   }
 
   return (
+    <>
     <Card className="space-y-5 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
         <div className="flex min-w-0 items-start gap-3">
@@ -515,20 +593,51 @@ const TimetableCard = () => {
         )}
       </div>
 
-      {timetableStatus === "success" && timetableTerms.length > 1 && (
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2 text-sm text-(--text-secondary)">
-            <span>{t.timetable.academicYearLabel}</span>
-            <select disabled={timetableLoadingTerm !== null} className="rounded-md border border-(--border-subtle) bg-(--surface) px-3 py-2 text-(--text-primary) disabled:opacity-60" value={activeYear} onChange={(event) => { const first = timetableTerms.find((term) => term.yearKey === event.target.value); setSelectedYear(event.target.value); if (first) { const key = `${first.yearKey}:${first.semesterKey}`; setSelectedTermKey(key); if (!availableTimetables.some((item) => `${item.term.yearKey}:${item.term.semesterKey}` === key)) void loadTimetableTerm(first); } }}>
-              {years.map((term) => <option key={term.yearKey} value={term.yearKey}>{term.yearLabel}</option>)}
-            </select>
-          </label>
-          <label className="flex items-center gap-2 text-sm text-(--text-secondary)">
-            <span>{t.timetable.semesterLabel}</span>
-            <select disabled={timetableLoadingTerm !== null} className="rounded-md border border-(--border-subtle) bg-(--surface) px-3 py-2 text-(--text-primary) disabled:opacity-60" value={activeTermKey} onChange={(event) => { const nextTerm = timetableTerms.find((term) => `${term.yearKey}:${term.semesterKey}` === event.target.value); setSelectedTermKey(event.target.value); if (nextTerm && !availableTimetables.some((item) => `${item.term.yearKey}:${item.term.semesterKey}` === event.target.value)) void loadTimetableTerm(nextTerm); }}>
-              {semesters.map((term) => <option key={term.semesterKey} value={`${term.yearKey}:${term.semesterKey}`}>{term.semesterLabel}</option>)}
-            </select>
-          </label>
+      {timetableStatus === "success" && browseTerms.length > 1 && (
+        <div className="flex flex-wrap items-center gap-2.5 border-y border-(--border-muted) py-3">
+          {registeredYears.length > 1 && (
+            <label className="flex items-center gap-2 text-xs font-medium text-(--text-secondary)">
+              <span>{t.timetable.academicYearLabel}</span>
+              <select
+                aria-label={t.timetable.academicYearLabel}
+                disabled={timetableLoadingTerm !== null}
+                className="h-9 max-w-36 rounded-(--radius-button) border border-(--border) bg-(--surface) px-3 text-sm text-(--text-primary) outline-none transition-colors focus-visible:border-(--primary) focus-visible:ring-2 focus-visible:ring-(--primary-soft) disabled:opacity-60"
+                value={activeYear}
+                onChange={(event) => {
+                  const nextYear = event.target.value;
+                  const firstTerm = registeredTerms.find((term) => term.yearKey === nextYear);
+                  setSelectedYear(nextYear);
+                  if (firstTerm) setSelectedTermKey(termKey(firstTerm));
+                }}
+              >
+                {registeredYears.map((term) => <option key={term.yearKey} value={term.yearKey}>{term.yearLabel}</option>)}
+              </select>
+            </label>
+          )}
+          {yearTerms.length > 1 && (
+            <label className="flex items-center gap-2 text-xs font-medium text-(--text-secondary)">
+              <span>{t.timetable.semesterLabel}</span>
+              <select
+                aria-label={t.timetable.semesterLabel}
+                disabled={timetableLoadingTerm !== null}
+                className="h-9 max-w-40 rounded-(--radius-button) border border-(--border) bg-(--surface) px-3 text-sm text-(--text-primary) outline-none transition-colors focus-visible:border-(--primary) focus-visible:ring-2 focus-visible:ring-(--primary-soft) disabled:opacity-60"
+                value={activeTermKey}
+                onChange={(event) => setSelectedTermKey(event.target.value)}
+              >
+                {yearTerms.map((term) => <option key={termKey(term)} value={termKey(term)}>{term.semesterLabel}</option>)}
+              </select>
+            </label>
+          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={timetableLoadingTerm !== null}
+            leftIcon={<Search className="h-3.5 w-3.5" aria-hidden="true" />}
+            onClick={openTermBrowser}
+            className="ml-auto"
+          >
+            {t.timetable.browseTerms}
+          </Button>
         </div>
       )}
 
@@ -541,6 +650,102 @@ const TimetableCard = () => {
         </p>
       )}
     </Card>
+    <Modal
+      isOpen={isTermBrowserOpen}
+      onClose={() => setIsTermBrowserOpen(false)}
+      title={t.timetable.browseTermsTitle}
+      description={t.timetable.browseTermsDescription}
+      maxWidth="md"
+      footer={(
+        <>
+          <Button size="sm" variant="ghost" onClick={() => setIsTermBrowserOpen(false)}>
+            {t.common.closeDialog}
+          </Button>
+          <Button
+            size="sm"
+            isLoading={timetableLoadingTerm === browseTermKey}
+            disabled={!browseTerm || timetableLoadingTerm !== null}
+            onClick={() => void loadBrowseTerm()}
+          >
+            {t.timetable.browseTermAction}
+          </Button>
+        </>
+      )}
+    >
+      <div className="space-y-5">
+        <section aria-label={t.timetable.browseYearsHint} className="space-y-2">
+          <h3 className="text-xs font-semibold text-(--text-primary)">{t.timetable.browseYearsHint}</h3>
+          <div className="grid max-h-44 grid-cols-3 gap-1.5 overflow-y-auto rounded-(--radius-sm) bg-(--surface-container-low) p-2 sm:grid-cols-4">
+            {browseYears.map((term) => {
+              const active = term.yearKey === browseYear;
+              const hasSchedule = registeredYears.some((registered) => registered.yearKey === term.yearKey);
+              return (
+                <button
+                  key={term.yearKey}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => chooseBrowseYear(term.yearKey)}
+                  className={`min-h-9 rounded-(--radius-xs) px-2 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-solid focus-visible:outline-(--primary) ${
+                    active
+                      ? "bg-(--primary-soft) text-(--primary) ring-1 ring-inset ring-(--primary-soft-border)"
+                      : "text-(--text-secondary) hover:bg-(--surface-container) hover:text-(--text-primary)"
+                  }`}
+                >
+                  <span className="inline-flex items-center justify-center gap-1.5">
+                    {hasSchedule && <Check className="h-3 w-3" aria-label={t.timetable.browseLoaded} />}
+                    {term.yearLabel}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <section aria-label={t.timetable.browseSemestersHint} className="space-y-2">
+          <h3 className="text-xs font-semibold text-(--text-primary)">{t.timetable.browseSemestersHint}</h3>
+          <div className="flex flex-wrap gap-2">
+            {browseSemesters.map((term) => {
+              const key = termKey(term);
+              const active = key === browseTermKey;
+              const hasSchedule = hasRegisteredTerm(key);
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => { setBrowseTermKey(key); setBrowseFeedback(null); }}
+                  className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-solid focus-visible:outline-(--primary) ${
+                    active
+                      ? "border-(--primary-soft-border) bg-(--primary-soft) text-(--primary)"
+                      : "border-(--border) bg-(--surface) text-(--text-secondary) hover:border-(--border-strong) hover:text-(--text-primary)"
+                  }`}
+                >
+                  {hasSchedule && <Check className="h-3 w-3" aria-label={t.timetable.browseLoaded} />}
+                  {term.semesterLabel}
+                </button>
+              );
+            })}
+            {browseSemesters.length === 0 && (
+              <p className="text-xs text-(--text-muted)">{t.timetable.browseTermsDescription}</p>
+            )}
+          </div>
+        </section>
+
+        {browseFeedback && (
+          <p
+            role="status"
+            className={`rounded-(--radius-xs) px-3 py-2 text-xs leading-5 ${
+              browseFeedback === "empty"
+                ? "bg-(--surface-container-low) text-(--text-secondary)"
+                : "bg-(--error-bg) text-(--error-text)"
+            }`}
+          >
+            {browseFeedback === "empty" ? t.timetable.browseNoCourses : t.timetable.browseLoadError}
+          </p>
+        )}
+      </div>
+    </Modal>
+    </>
   );
 };
 
