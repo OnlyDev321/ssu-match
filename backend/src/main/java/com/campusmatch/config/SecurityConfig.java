@@ -40,6 +40,8 @@ public class SecurityConfig {
                         .requestMatchers("/error").permitAll()
                         // JWT được xác thực ngay trong frame AUTH đầu tiên của WebSocket.
                         .requestMatchers("/ws").permitAll()
+                        // Internal BFF endpoints perform their own constant-time shared-secret check.
+                        .requestMatchers("/api/internal/**").permitAll()
                         // Endpoints công khai
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/health", "/api/auth/**").permitAll()

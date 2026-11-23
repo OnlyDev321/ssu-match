@@ -26,3 +26,6 @@ spring:
 jwt:
   secret: ${JWT_SECRET}
   expiration-ms: 86400000 # 24 Hours
+
+app:
+  internal-api-secret: ${INTERNAL_API_SECRET:}

@@ -232,6 +232,8 @@ export const ko: TranslationDict = {
   },
   timetable: {
     title: "내 시간표",
+    academicYearLabel: "학년도",
+    semesterLabel: "학기",
     term: "{year}학년도 {semester}",
     secondSemester: "2학기",
     fetchedAt: "로그인 시 u-SAINT에서 불러옴 · {time} (한국 시간)",

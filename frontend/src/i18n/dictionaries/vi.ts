@@ -238,6 +238,8 @@ export const vi: TranslationDict = {
   },
   timetable: {
     title: "Thời khóa biểu của tôi",
+    academicYearLabel: "Năm học",
+    semesterLabel: "Học kỳ",
     term: "{semester} · {year}",
     secondSemester: "Học kỳ 2",
     fetchedAt: "Lấy từ u-SAINT khi đăng nhập · {time} (giờ Hàn Quốc)",

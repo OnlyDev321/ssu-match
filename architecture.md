@@ -19,7 +19,7 @@ Spring Boot 4.1.1 / Java 17
 
 - `frontend/src/app/layout.tsx` lắp Header, Sidebar, Footer, LoginModal và ThemeProvider. `frontend/src/design-system/` chứa component, tokens và theme. UI dùng ba từ điển `en`, `vi`, `ko` tại `frontend/src/i18n/dictionaries/`.
 - `frontend/src/lib/types.ts` tập trung type/interface ứng dụng; `frontend/src/services/` đóng gói HTTP; `frontend/src/stores/` là state Zustand. `authStore` lưu profile, JWT và bản chụp thời khóa biểu trong localStorage; notification state được lấy lại từ database.
-- Route `/api/auth/usaint` xác thực u-SAINT và lấy hồ sơ/thời khóa biểu SAP. Chỉ khi lấy được hồ sơ, route mới bàn giao profile cho Spring Boot để upsert `users` và cấp JWT. Mật khẩu và cookie SAP không được ghi vào PostgreSQL. Thời khóa biểu chỉ nằm trong phiên trình duyệt/localStorage, **không có bảng database**.
+- Route `/api/auth/usaint` xác thực u-SAINT, lấy hồ sơ và tải kỳ hiện tại hoặc kỳ gần nhất có lịch trước khi trả phản hồi. Các kỳ khác được tải khi người dùng chọn bộ lọc. Cookie SAP được giữ tối đa 30 phút trong bộ nhớ Spring Boot qua endpoint nội bộ có shared secret, còn trình duyệt chỉ giữ một session ID ngẫu nhiên trong cookie HttpOnly. Cookie SAP và mật khẩu không được ghi vào PostgreSQL.
 - Browser gọi Spring Boot trực tiếp qua `NEXT_PUBLIC_API_BASE_URL`. API public gồm danh sách/chi tiết nhóm, năm đăng, danh mục học vụ, thống kê và health; các thao tác cá nhân cần JWT. Service backend kiểm tra quyền leader/applicant trên từng thao tác.
 
 ## 2. Cấu trúc repository
@@ -109,7 +109,7 @@ Base path backend: `/api`. BFF Next.js có base path riêng cùng tên nhưng ch
 
 - Backend: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET` (`backend/.env.example`); PostgreSQL driver, Spring JPA `ddl-auto: update`.
 - Database hiện tại đã được chuyển từ hai bảng tags/role quotas cũ sang hai cột JSONB trong `study_groups`. Repository không còn chứa script chuyển đổi; database cũ khác cần một kế hoạch di chuyển dữ liệu riêng trước khi chạy bản backend này. `ddl-auto: update` không tự xóa bảng cũ hoặc chuyển dữ liệu.
-- Frontend: `NEXT_PUBLIC_API_BASE_URL`; `SPRING_BOOT_API_URL` cho BFF auth (mặc định `http://localhost:8080`); `FACTCHAT_API_KEY`/`FACTCHAT_MODEL` tùy chọn cho dịch thuật (`frontend/.env.example`).
+- Frontend: `NEXT_PUBLIC_API_BASE_URL`; `SPRING_BOOT_API_URL` cho BFF auth (mặc định `http://localhost:8080`); `SPRING_BOOT_INTERNAL_SECRET` phải trùng với `INTERNAL_API_SECRET` backend để lưu/đọc phiên u-SAINT; `FACTCHAT_API_KEY`/`FACTCHAT_MODEL` tùy chọn cho dịch thuật (`frontend/.env.example`).
 - CORS backend hiện cho `localhost:3000` và `127.0.0.1:3000`; origin production phải được cấu hình trước khi triển khai.
 - Kiểm tra frontend: `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm build`. Kiểm tra backend: `./gradlew test --offline`. Test khởi tạo Spring context chỉ chạy khi có `DB_URL` trong môi trường; unit tests không cần database.
 

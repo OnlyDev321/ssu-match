@@ -393,10 +393,22 @@ const TimetableStatePanel = ({ icon, title, description, action, tone = "neutral
 
 const TimetableCard = () => {
   const { t, language } = useLanguageStore();
-  const { timetable, timetableStatus, openLoginModal } = useAuthStore();
+  const { timetable, timetables, timetableTerms, timetableLoadingTerm, timetableTermError, loadTimetableTerm, timetableStatus, openLoginModal } = useAuthStore();
+  const [selectedYear, setSelectedYear] = useState("");
+  const [selectedTermKey, setSelectedTermKey] = useState("");
 
   const signInAgain = () => openLoginModal("/mypage");
-  const loaded = timetableStatus === "success" && timetable ? timetable : null;
+  const availableTimetables = timetables.length ? timetables : timetable ? [timetable] : [];
+  const years = [...new Map(timetableTerms.map((term) => [term.yearKey, term])).values()];
+  const activeYear = years.some((term) => term.yearKey === selectedYear) ? selectedYear : timetable?.term.yearKey ?? years[0]?.yearKey ?? "";
+  const yearTerms = timetableTerms.filter((term) => term.yearKey === activeYear);
+  const semesters = [...new Map(yearTerms.map((term) => [term.semesterKey, term])).values()];
+  const activeTermKey = yearTerms.some((term) => `${term.yearKey}:${term.semesterKey}` === selectedTermKey)
+    ? selectedTermKey
+    : timetable ? `${timetable.term.yearKey}:${timetable.term.semesterKey}` : yearTerms[0] ? `${yearTerms[0].yearKey}:${yearTerms[0].semesterKey}` : "";
+  const loaded = timetableStatus === "success"
+    ? availableTimetables.find((item) => `${item.term.yearKey}:${item.term.semesterKey}` === activeTermKey) ?? null
+    : null;
   const termLabel = loaded
     ? formatMessage(t.timetable.term, {
         year: loaded.term.yearKey,
@@ -408,6 +420,22 @@ const TimetableCard = () => {
   let body: React.ReactNode;
   if (timetableStatus === "loading") {
     body = <TimetableSkeleton label={t.timetable.loading} />;
+  } else if (timetableLoadingTerm === activeTermKey) {
+    body = <TimetableSkeleton label={t.timetable.loading} />;
+  } else if (timetableTermError && !loaded) {
+    body = (
+      <TimetableStatePanel
+        tone="error"
+        icon={<CalendarOff className="h-5 w-5" />}
+        title={t.timetable.unavailableTitle}
+        description={t.timetable.unavailableDesc}
+        action={
+          <Button size="sm" variant="outline" onClick={signInAgain} leftIcon={<LogIn className="h-3.5 w-3.5" />}>
+            <ScrambleText text={t.timetable.signInAgain} />
+          </Button>
+        }
+      />
+    );
   } else if (timetableStatus === "unavailable") {
     body = (
       <TimetableStatePanel
@@ -486,6 +514,23 @@ const TimetableCard = () => {
           </Badge>
         )}
       </div>
+
+      {timetableStatus === "success" && timetableTerms.length > 1 && (
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-sm text-(--text-secondary)">
+            <span>{t.timetable.academicYearLabel}</span>
+            <select disabled={timetableLoadingTerm !== null} className="rounded-md border border-(--border-subtle) bg-(--surface) px-3 py-2 text-(--text-primary) disabled:opacity-60" value={activeYear} onChange={(event) => { const first = timetableTerms.find((term) => term.yearKey === event.target.value); setSelectedYear(event.target.value); if (first) { const key = `${first.yearKey}:${first.semesterKey}`; setSelectedTermKey(key); if (!availableTimetables.some((item) => `${item.term.yearKey}:${item.term.semesterKey}` === key)) void loadTimetableTerm(first); } }}>
+              {years.map((term) => <option key={term.yearKey} value={term.yearKey}>{term.yearLabel}</option>)}
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-sm text-(--text-secondary)">
+            <span>{t.timetable.semesterLabel}</span>
+            <select disabled={timetableLoadingTerm !== null} className="rounded-md border border-(--border-subtle) bg-(--surface) px-3 py-2 text-(--text-primary) disabled:opacity-60" value={activeTermKey} onChange={(event) => { const nextTerm = timetableTerms.find((term) => `${term.yearKey}:${term.semesterKey}` === event.target.value); setSelectedTermKey(event.target.value); if (nextTerm && !availableTimetables.some((item) => `${item.term.yearKey}:${item.term.semesterKey}` === event.target.value)) void loadTimetableTerm(nextTerm); }}>
+              {semesters.map((term) => <option key={term.semesterKey} value={`${term.yearKey}:${term.semesterKey}`}>{term.semesterLabel}</option>)}
+            </select>
+          </label>
+        </div>
+      )}
 
       {body}
 

@@ -108,6 +108,10 @@ export interface AuthState {
   isLoginModalOpen: boolean;                                      // Trạng thái đóng/mở modal đăng nhập SSO
   redirectAfterLogin: string | null;                              // Đường dẫn cần chuyển đến sau khi đăng nhập
   timetable: StudentTimetable | null;                             // Thời khóa biểu u-SAINT lấy cùng lúc đăng nhập (null nếu chưa có / lỗi)
+  timetables: StudentTimetable[];                                  // Các kỳ gần nhất có thời khóa biểu, phục vụ bộ lọc năm học / học kỳ
+  timetableTerms: TimetableTerm[];                                // Các kỳ u-SAINT cho phép chọn; lịch cũ được tải theo yêu cầu
+  timetableLoadingTerm: string | null;                            // Khóa năm/học kỳ đang tải
+  timetableTermError: boolean;                                    // Lần tải kỳ được chọn gần nhất thất bại
   timetableStatus: TimetableStatus;                               // Trạng thái thời khóa biểu (phân biệt lỗi với thời khóa biểu rỗng)
 
   // Actions
@@ -116,6 +120,7 @@ export interface AuthState {
   openLoginModal: (redirectTo?: string) => void;                  // Mở modal đăng nhập kèm link chuyển tiếp
   closeLoginModal: () => void;                                    // Đóng modal đăng nhập
   login: (studentId: string, password: string) => Promise<AuthLoginResult>; // Xác thực đăng nhập qua SSO
+  loadTimetableTerm: (term: TimetableTerm) => Promise<boolean>;   // Tải theo yêu cầu một học kỳ từ phiên SAP ngắn hạn
   logout: () => void;                                             // Đăng xuất và dọn sạch session
 }
 
@@ -161,6 +166,7 @@ export interface UsaintLoginApiResponse {
   token?: string | null;    // JWT do Spring Boot cấp (null nếu Backend phản hồi lỗi)
   userId?: number | null;   // ID người dùng trong DB Backend (users.id), null nếu Backend không phản hồi
   timetable?: StudentTimetable | null;               // Thời khóa biểu u-SAINT (null nếu không lấy được)
+  timetableTerms?: TimetableTerm[];                   // Các năm/học kỳ có thể chọn từ u-SAINT
   timetableStatus?: "success" | "unavailable";       // Kết quả lấy thời khóa biểu (lỗi không làm hỏng đăng nhập)
   errorCode?: string;       // Mã lỗi định danh (VD: INVALID_CREDENTIALS, MISSING_FIELDS)
   error?: string;           // Thông báo lỗi nếu thất bại
@@ -244,7 +250,7 @@ export type TimetableStatus = "loading" | "success" | "unavailable" | "not_fetch
  * `reason` chỉ mô tả quy tắc bị vi phạm, không chứa nội dung ô (không lộ dữ liệu cá nhân trong log).
  */
 export type TimetableFetchResult =
-  | { ok: true; timetable: StudentTimetable }  // Thành công
+  | { ok: true; timetable: StudentTimetable; timetables?: StudentTimetable[]; availableTerms?: TimetableTerm[] }  // Thành công, có thể kèm các kỳ lựa chọn
   | { ok: false; reason: string };              // Thất bại kèm lý do kỹ thuật
 
 /**

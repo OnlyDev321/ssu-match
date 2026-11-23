@@ -235,6 +235,8 @@ export const en = {
   // My Timetable (My Page, u-SAINT ZCMW2102)
   timetable: {
     title: "My Timetable",
+    academicYearLabel: "Academic year",
+    semesterLabel: "Semester",
     term: "{year} · {semester}",
     secondSemester: "Semester 2",
     fetchedAt: "Loaded from u-SAINT at sign-in · {time} (KST)",

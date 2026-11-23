@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateUsaint, fetchStudentProfileFromSap, fetchTimetableFromSap } from "@/lib/usaint";
-import type { SupportedLanguage, StudentProfile, StudentTimetable } from "@/lib/types";
+import type { SupportedLanguage, StudentProfile, StudentTimetable, TimetableTerm } from "@/lib/types";
+
+export const maxDuration = 150;
 
 const MESSAGES = {
   MISSING_FIELDS: {
@@ -44,6 +46,7 @@ function getLanguage(
  */
 export async function POST(req: NextRequest) {
   let lang: SupportedLanguage = "ko";
+  const previousTimetableSessionId = req.cookies.get("usaint_timetable_session")?.value;
   try {
     // 1. Tiếp nhận Request & bóc tách studentId và password
     const body = await req.json();
@@ -89,9 +92,11 @@ export async function POST(req: NextRequest) {
 
     // 5. Xác thực thành công: Lấy hồ sơ (ZCMW1001n) và thời khóa biểu (ZCMW2102) song song.
     //    Mỗi màn hình dùng SapWdaClient riêng; lỗi thời khóa biểu không làm hỏng đăng nhập hay hồ sơ.
-    //    Cookie phiên u-SAINT chỉ dùng trong request này, không trả về trình duyệt.
+    //    Cookie phiên u-SAINT chỉ được chuyển vào backend sau khi đăng nhập hoàn tất.
     let profile: StudentProfile | null = null;
     let timetable: StudentTimetable | null = null;
+    let timetables: StudentTimetable[] = [];
+    let timetableTerms: TimetableTerm[] = [];
     if (authResult.sessionCookies) {
       const [profileResult, timetableResult] = await Promise.allSettled([
         fetchStudentProfileFromSap(authResult.sessionCookies, String(studentId).trim()),
@@ -100,6 +105,8 @@ export async function POST(req: NextRequest) {
       profile = profileResult.status === "fulfilled" ? profileResult.value : null;
       if (timetableResult.status === "fulfilled" && timetableResult.value.ok) {
         timetable = timetableResult.value.timetable;
+        timetables = timetableResult.value.timetables ?? [timetable];
+        timetableTerms = timetableResult.value.availableTerms ?? [timetable.term];
       } else {
         const reason =
           timetableResult.status === "rejected"
@@ -109,6 +116,7 @@ export async function POST(req: NextRequest) {
               : timetableResult.value.reason;
         console.warn("Không lấy được thời khóa biểu từ u-SAINT:", reason);
       }
+
     }
 
     // Không tạo hồ sơ học vụ giả khi SAP không trả về dữ liệu xác thực.
@@ -155,7 +163,41 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, errorCode: "SERVER_ERROR", error: MESSAGES.SERVER_ERROR[lang] }, { status: 502 });
     }
 
-    return NextResponse.json({
+    let timetableSessionId: string | null = null;
+    const internalSecret = process.env.SPRING_BOOT_INTERNAL_SECRET;
+    if (authResult.sessionCookies && timetable && internalSecret) {
+      try {
+        const backendUrl = process.env.SPRING_BOOT_API_URL || "http://localhost:8080";
+        const sessionResponse = await fetch(`${backendUrl}/api/internal/usaint-sessions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Internal-Secret": internalSecret },
+          body: JSON.stringify({ sessionCookies: authResult.sessionCookies }),
+        });
+        if (sessionResponse.ok) {
+          const sessionData = await sessionResponse.json();
+          timetableSessionId = sessionData.sessionId ?? null;
+        } else {
+          console.warn("Không lưu được phiên thời khóa biểu ngắn hạn ở backend:", sessionResponse.status);
+        }
+      } catch (error) {
+        console.warn("Không lưu được phiên thời khóa biểu ngắn hạn ở backend:", error);
+      }
+    }
+
+    if (previousTimetableSessionId && internalSecret) {
+      try {
+        const backendUrl = process.env.SPRING_BOOT_API_URL || "http://localhost:8080";
+        await fetch(`${backendUrl}/api/internal/usaint-sessions/${encodeURIComponent(previousTimetableSessionId)}`, {
+          method: "DELETE",
+          headers: { "X-Internal-Secret": internalSecret },
+          cache: "no-store",
+        });
+      } catch {
+        // Phiên cũ vẫn tự hết hạn trong backend.
+      }
+    }
+
+    const response = NextResponse.json({
       success: true,
       message: MESSAGES.SUCCESS[lang],
       studentId: String(studentId).trim(),
@@ -163,8 +205,20 @@ export async function POST(req: NextRequest) {
       token: backendToken,
       userId: backendUserId,
       timetable,
+      timetables,
+      timetableTerms: timetableSessionId ? timetableTerms : timetable ? [timetable.term] : [],
       timetableStatus: timetable ? "success" : "unavailable",
     });
+    if (timetableSessionId || previousTimetableSessionId) {
+      response.cookies.set("usaint_timetable_session", timetableSessionId ?? "", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/api/auth/usaint",
+        maxAge: timetableSessionId ? 30 * 60 : 0,
+      });
+    }
+    return response;
   } catch (error) {
     console.error("Lỗi hệ thống khi xử lý xác thực u-SAINT:", error);
     return NextResponse.json(

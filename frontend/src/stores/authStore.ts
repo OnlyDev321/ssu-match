@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import type { StudentProfile, AuthState, TimetableStatus } from "@/lib/types";
+import type { StudentProfile, AuthState, TimetableStatus, TimetableTerm } from "@/lib/types";
 import { normalizeStudentTimetable } from "@/lib/timetableParser";
 import { useLanguageStore } from "@/stores/languageStore";
 import { clearCachedQueries } from "@/lib/queryCache";
@@ -24,6 +24,10 @@ export const useAuthStore = create<AuthState>()(
       isLoginModalOpen: false,
       redirectAfterLogin: null,
       timetable: null,
+      timetables: [],
+      timetableTerms: [],
+      timetableLoadingTerm: null,
+      timetableTermError: false,
       timetableStatus: "not_fetched",
 
       setUser: (user) => set({ user, isLoggedIn: !!user }),
@@ -84,6 +88,15 @@ export const useAuthStore = create<AuthState>()(
           // Kiểm tra lại cấu trúc thời khóa biểu trước khi lưu; dữ liệu không hợp lệ được coi là "unavailable".
           const timetable =
             data.timetableStatus === "success" ? normalizeStudentTimetable(data.timetable) : null;
+          const timetables = Array.isArray(data.timetables)
+            ? data.timetables.map(normalizeStudentTimetable).filter((item): item is NonNullable<typeof item> => item !== null)
+            : timetable ? [timetable] : [];
+          const timetableTerms = Array.isArray(data.timetableTerms)
+            ? data.timetableTerms.filter((item: unknown): item is TimetableTerm =>
+                typeof item === "object" && item !== null &&
+                typeof (item as TimetableTerm).yearKey === "string" &&
+                typeof (item as TimetableTerm).semesterKey === "string")
+            : timetable ? [timetable.term] : [];
 
           // Lưu JWT thật do Spring Boot cấp và ID người dùng trong DB (BFF chuyển tiếp từ /api/auth/sso/usaint)
           clearCachedQueries("private:");
@@ -95,6 +108,10 @@ export const useAuthStore = create<AuthState>()(
             isLoginModalOpen: false,
             isLoading: false,
             timetable,
+            timetables,
+            timetableTerms,
+            timetableLoadingTerm: null,
+            timetableTermError: false,
             timetableStatus: timetable ? "success" : "unavailable",
           });
 
@@ -108,6 +125,33 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
+      loadTimetableTerm: async (term) => {
+        const key = `${term.yearKey}:${term.semesterKey}`;
+        const cached = get().timetables.some((item) => `${item.term.yearKey}:${item.term.semesterKey}` === key);
+        if (cached) return true;
+        set({ timetableLoadingTerm: key, timetableTermError: false });
+        try {
+          const language = useLanguageStore.getState().language || "ko";
+          const response = await fetch("/api/auth/usaint/timetable", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Accept-Language": language },
+            body: JSON.stringify(term),
+          });
+          const data = await response.json();
+          const timetable = response.ok && data.success ? normalizeStudentTimetable(data.timetable) : null;
+          if (!timetable) throw new Error(data.errorCode || "TIMETABLE_UNAVAILABLE");
+          set((state) => ({
+            timetables: [...state.timetables.filter((item) => `${item.term.yearKey}:${item.term.semesterKey}` !== key), timetable],
+          }));
+          return true;
+        } catch {
+          set({ timetableTermError: true });
+          return false;
+        } finally {
+          set({ timetableLoadingTerm: null });
+        }
+      },
+
       logout: () => {
         clearCachedQueries("private:");
         set({
@@ -118,8 +162,13 @@ export const useAuthStore = create<AuthState>()(
           isLoginModalOpen: false,
           redirectAfterLogin: null,
           timetable: null,
+          timetables: [],
+          timetableTerms: [],
+          timetableLoadingTerm: null,
+          timetableTermError: false,
           timetableStatus: "not_fetched",
         });
+        void fetch("/api/auth/usaint/timetable", { method: "DELETE" }).catch(() => undefined);
       },
     }),
     {
@@ -132,16 +181,28 @@ export const useAuthStore = create<AuthState>()(
         userId: state.userId,
         isLoggedIn: state.isLoggedIn,
         timetable: state.timetable,
+        timetables: state.timetables,
+        timetableTerms: state.timetableTerms,
         timetableStatus: state.timetableStatus,
       }),
       // Kiểm tra lại thời khóa biểu khi khôi phục; phiên cũ không có trường này vẫn hoạt động bình thường.
       merge: (persisted, current) => {
         const saved = (persisted ?? {}) as Partial<AuthState>;
         const timetable = normalizeStudentTimetable(saved.timetable);
+        const timetables = Array.isArray(saved.timetables)
+          ? saved.timetables.map(normalizeStudentTimetable).filter((item): item is NonNullable<typeof item> => item !== null)
+          : timetable ? [timetable] : [];
+        const timetableTerms = Array.isArray(saved.timetableTerms)
+          ? saved.timetableTerms
+          : timetable ? [timetable.term] : [];
         return {
           ...current,
           ...saved,
           timetable,
+          timetables,
+          timetableTerms,
+          timetableLoadingTerm: null,
+          timetableTermError: false,
           timetableStatus: restoreTimetableStatus(saved.timetableStatus, timetable !== null),
         };
       },

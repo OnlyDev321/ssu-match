@@ -335,7 +335,7 @@ export async function fetchStudentProfileFromSap(
 }
 
 const TIMETABLE_APP = "ZCMW2102"; // 개인수업시간표조회 (학생용)
-const TIMETABLE_TIMEOUT_MS = 15_000;
+const TIMETABLE_TIMEOUT_MS = 120_000;
 
 /**
  * Đọc năm học / học kỳ đang chọn trên màn hình thời khóa biểu (VD: "2026"/"2026학년도", "092"/"2학기").
@@ -353,13 +353,34 @@ function readTimetableTerm(wda: SapWdaClient): TimetableTerm | null {
   return { yearKey: year.key, yearLabel: year.text, semesterKey: semester.key, semesterLabel: semester.text };
 }
 
-async function loadTimetable(sessionCookies: string): Promise<TimetableFetchResult> {
+async function loadTimetable(sessionCookies: string, requestedTerm?: TimetableTerm): Promise<TimetableFetchResult> {
   const wda = new SapWdaClient("https://ecc.ssu.ac.kr:8443", TIMETABLE_APP, sessionCookies);
   const initResult = await wda.initialize();
   if (!initResult.isSuccess) return { ok: false, reason: "timetable screen initialization failed" };
 
   const term = readTimetableTerm(wda);
-  if (!term) return { ok: false, reason: "year/semester selectors not found" };
+  const selectors = getTimetableSelectors(wda);
+  if (!term || !selectors) return { ok: false, reason: "year/semester selectors not found" };
+  const availableTerms = buildAvailableTerms(selectors.years, selectors.semesters);
+
+  if (requestedTerm) {
+    const yearCombo = wda.getControlById<SapComboBox>(selectors.yearId);
+    if (!yearCombo || !selectors.years.some((option) => option.key === requestedTerm.yearKey)) {
+      return { ok: false, reason: "requested academic year is unavailable" };
+    }
+    if (yearCombo.selectedKey !== requestedTerm.yearKey) {
+      const result = await yearCombo.selectByKey(requestedTerm.yearKey);
+      if (!result.isSuccess) return { ok: false, reason: "year selection failed" };
+    }
+    const semesterCombo = wda.getControlById<SapComboBox>(selectors.semesterId);
+    if (!semesterCombo || !selectors.semesters.some((option) => option.key === requestedTerm.semesterKey)) {
+      return { ok: false, reason: "requested semester is unavailable" };
+    }
+    if (semesterCombo.selectedKey !== requestedTerm.semesterKey) {
+      const result = await semesterCombo.selectByKey(requestedTerm.semesterKey);
+      if (!result.isSuccess) return { ok: false, reason: "semester selection failed" };
+    }
+  }
 
   // Bảng thời khóa biểu: SapTable có tiêu đề "시간, 월, 화, 수, 목, 금, 토".
   let table: SapTable | null = null;
@@ -379,11 +400,99 @@ async function loadTimetable(sessionCookies: string): Promise<TimetableFetchResu
   const tableNode = wda.$(`[id="${found.id}"]`).get(0) as unknown as TimetableDomNode | undefined;
   if (!tableNode) return { ok: false, reason: "timetable table element missing" };
 
-  return parseTimetableCells(extractTimetableCells(tableNode, headers), headers, {
-    term,
-    expectedRows: found.getTotalRowCount(),
-    fetchedAt: new Date().toISOString(),
+  const readCurrentTerm = () => {
+    const activeTerm = readTimetableTerm(wda) ?? term;
+    const activeTable = wda.getControlById<SapTable>(found.id) ?? found;
+    const activeNode = wda.$(`[id="${activeTable.id}"]`).get(0) as unknown as TimetableDomNode | undefined;
+    if (!activeNode) return { ok: false as const, reason: "timetable table element missing" };
+    return parseTimetableCells(extractTimetableCells(activeNode, headers), headers, {
+      term: activeTerm,
+      expectedRows: activeTable.getTotalRowCount(),
+      fetchedAt: new Date().toISOString(),
+    });
+  };
+  const initial = readCurrentTerm();
+  if (!initial.ok) return initial;
+  if (requestedTerm || initial.timetable.courses.length > 0) {
+    return { ...initial, timetables: [initial.timetable], availableTerms };
+  }
+
+  // Chỉ dò ngược đến kỳ gần nhất có lịch để trang cá nhân có thể hiển thị nhanh.
+  const candidates = buildPreviousTerms(selectors.years, selectors.semesters, term);
+  for (const candidate of candidates) {
+    const yearCombo = wda.getControlById<SapComboBox>(selectors.yearId);
+    const semesterCombo = wda.getControlById<SapComboBox>(selectors.semesterId);
+    if (!yearCombo || !semesterCombo) return { ok: false, reason: "year/semester selectors unavailable" };
+    if (yearCombo.selectedKey !== candidate.yearKey) {
+      const yearChange = await yearCombo.selectByKey(candidate.yearKey);
+      if (!yearChange.isSuccess) return { ok: false, reason: "year selection failed" };
+    }
+    const refreshedSemester = wda.getControlById<SapComboBox>(selectors.semesterId);
+    if (!refreshedSemester) return { ok: false, reason: "semester selector unavailable" };
+    if (refreshedSemester.selectedKey !== candidate.semesterKey) {
+      const semesterChange = await refreshedSemester.selectByKey(candidate.semesterKey);
+      if (!semesterChange.isSuccess) return { ok: false, reason: "semester selection failed" };
+    }
+    const result = readCurrentTerm();
+    if (!result.ok) return result;
+    if (result.timetable.courses.length > 0) {
+      return { ...result, timetables: [result.timetable], availableTerms };
+    }
+  }
+  return { ...initial, timetables: [initial.timetable], availableTerms };
+}
+
+function getTimetableSelectors(wda: SapWdaClient) {
+  const combos: { id: string; combo: SapComboBox }[] = [];
+  wda.$('[ct="CO"], [ct="CB"]').each((_, el) => {
+    const id = wda.$(el).attr("id");
+    const combo = id ? wda.getControlById<SapComboBox>(id) : null;
+    if (id && combo) combos.push({ id, combo });
   });
+  const year = combos.find(({ combo }) => /^\d{4}$/.test(combo.selectedKey) && combo.selectedText);
+  const semester = combos.find(({ combo }) => combo.selectedText.includes("학기") && combo.selectedKey);
+  if (!year || !semester) return null;
+  return {
+    yearId: year.id,
+    semesterId: semester.id,
+    years: year.combo.getAvailableOptions(),
+    semesters: semester.combo.getAvailableOptions(),
+  };
+}
+
+function buildPreviousTerms(
+  years: { key: string; text: string }[],
+  semesters: { key: string; text: string }[],
+  current: TimetableTerm,
+): TimetableTerm[] {
+  const terms = years.flatMap((year) =>
+    semesters.map((semester) => ({
+      yearKey: year.key,
+      yearLabel: year.text,
+      semesterKey: semester.key,
+      semesterLabel: semester.text,
+    })),
+  );
+  terms.sort(
+    (a, b) =>
+      Number(b.yearKey) - Number(a.yearKey) ||
+      semesters.findIndex((semester) => semester.key === b.semesterKey) -
+        semesters.findIndex((semester) => semester.key === a.semesterKey),
+  );
+  const currentIndex = terms.findIndex((item) => item.yearKey === current.yearKey && item.semesterKey === current.semesterKey);
+  return currentIndex < 0 ? [] : terms.slice(currentIndex + 1);
+}
+
+function buildAvailableTerms(
+  years: { key: string; text: string }[],
+  semesters: { key: string; text: string }[],
+): TimetableTerm[] {
+  return years.flatMap((year) => semesters.map((semester) => ({
+    yearKey: year.key,
+    yearLabel: year.text,
+    semesterKey: semester.key,
+    semesterLabel: semester.text,
+  })));
 }
 
 /**
@@ -406,6 +515,29 @@ export async function fetchTimetableFromSap(sessionCookies: string): Promise<Tim
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<TimetableFetchResult>((resolve) => {
     timer = setTimeout(() => resolve({ ok: false, reason: "timed out" }), TIMETABLE_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([work, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Tải đúng một kỳ từ SAP trong phiên đăng nhập ngắn hạn phía máy chủ. */
+export async function fetchTimetableTermFromSap(
+  sessionCookies: string,
+  term: TimetableTerm,
+): Promise<TimetableFetchResult> {
+  if (!sessionCookies) return { ok: false, reason: "no u-SAINT session" };
+  const work = loadTimetable(sessionCookies, term).catch(
+    (error: unknown): TimetableFetchResult => ({
+      ok: false,
+      reason: error instanceof Error ? error.message : "unknown error",
+    }),
+  );
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<TimetableFetchResult>((resolve) => {
+    timer = setTimeout(() => resolve({ ok: false, reason: "timed out" }), 15_000);
   });
   try {
     return await Promise.race([work, timeout]);
