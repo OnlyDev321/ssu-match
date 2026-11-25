@@ -14,7 +14,11 @@ export function ThemeToggle({
   className = "",
 }: ThemeToggleProps) {
   const { theme, resolvedTheme, setTheme, toggleTheme } = useTheme();
-  const mounted = useSyncExternalStore(subscribeToHydration, clientSnapshot, serverSnapshot);
+  const mounted = useSyncExternalStore(
+    subscribeToHydration,
+    clientSnapshot,
+    serverSnapshot,
+  );
 
   if (!mounted) {
     // Avoid hydration mismatch by rendering a placeholder of equal size
