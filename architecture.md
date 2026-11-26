@@ -1,120 +1,150 @@
-# SSUMatch — kiến trúc hiện tại
+# SSUMatch — Current Architecture
 
-Tài liệu này mô tả **mã nguồn trong repository tại ngày 14/11/2026**, không phải kế hoạch triển khai hay lời khẳng định về môi trường production. Nguồn sự thật của schema hiện là các JPA entity trong `backend/src/main/java/com/campusmatch/entity/` và `backend/src/main/java/com/campusmatch/academic/`; Hibernate dùng `ddl-auto: update`. Repository hiện không có thư mục migration hoặc Flyway/Liquibase.
+This document describes the **codebase in this repository as of 2026-11-26**, not a future roadmap or production SLA. The current source of truth for the database schema is the JPA entity definitions under `backend/src/main/java/com/campusmatch/entity/` and `backend/src/main/java/com/campusmatch/academic/`. Flyway dependencies and `spring.flyway.enabled: true` are configured, but there are no versioned migration scripts under `backend/src/main/resources/db/migration/` yet; Hibernate currently manages schema updates with `ddl-auto: update`.
 
-## 1. Các tầng và luồng dữ liệu
+## 1. Layers and Data Flow
 
 ```text
-Browser (Next.js 16 / React 19 / TypeScript)
-  ├─ app/pages + components + design-system
-  ├─ Zustand: auth, language, notifications
-  ├─ services → lib/api.ts → Spring Boot /api/* (JWT Bearer)
-  └─ Next.js Route Handlers
-       ├─ /api/auth/usaint → u-SAINT/SAP → Spring Boot /api/auth/sso/usaint
-       └─ /api/translate → FactChat (nếu cấu hình FACTCHAT_API_KEY)
-Spring Boot 4.1.1 / Java 17
-  └─ controllers → services (@Transactional) → Spring Data JPA repositories
-       └─ PostgreSQL (URL do DB_URL cung cấp)
+Browser (Next.js 16 / React 19 / TypeScript / Tailwind CSS v4)
+  ├─ app/pages + components + design-system (light/dark themes, en/vi/ko i18n)
+  ├─ Zustand stores: auth, language, notifications
+  ├─ Client query cache (lib/queryCache.ts) + REST services → lib/api.ts → Spring Boot /api/* (JWT Bearer)
+  ├─ WebSocket client (RealtimeConnection.tsx) ↔ Spring Boot /ws (first-frame JWT auth)
+  └─ Next.js Route Handlers (BFF)
+       ├─ /api/auth/usaint            → u-SAINT/SAP → Spring Boot /api/auth/sso/usaint
+       │                                            → Spring Boot /api/internal/usaint-sessions
+       ├─ /api/auth/usaint/timetable  → Spring Boot /api/internal/usaint-sessions → u-SAINT/SAP
+       └─ /api/translate              → FactChat (when FACTCHAT_API_KEY is configured)
+
+Spring Boot 4.1.1 / Java 17 (Jackson 3)
+  ├─ REST controllers → services (@Transactional) → Spring Data JPA repositories
+  │    └─ PostgreSQL (configured via DB_URL)
+  ├─ Realtime WebSocket (/ws) ← @TransactionalEventListener(AFTER_COMMIT)
+  └─ In-memory UsaintSessionStore (30-min TTL, shared-secret internal API)
 ```
 
-- `frontend/src/app/layout.tsx` lắp Header, Sidebar, Footer, LoginModal và ThemeProvider. `frontend/src/design-system/` chứa component, tokens và theme. UI dùng ba từ điển `en`, `vi`, `ko` tại `frontend/src/i18n/dictionaries/`.
-- `frontend/src/lib/types.ts` tập trung type/interface ứng dụng; `frontend/src/services/` đóng gói HTTP; `frontend/src/stores/` là state Zustand. `authStore` lưu profile, JWT và bản chụp thời khóa biểu trong localStorage; notification state được lấy lại từ database.
-- Route `/api/auth/usaint` xác thực u-SAINT, lấy hồ sơ và tải kỳ hiện tại hoặc kỳ gần nhất có lịch trước khi trả phản hồi. Các kỳ khác được tải khi người dùng chọn bộ lọc. Cookie SAP được giữ tối đa 30 phút trong bộ nhớ Spring Boot qua endpoint nội bộ có shared secret, còn trình duyệt chỉ giữ một session ID ngẫu nhiên trong cookie HttpOnly. Cookie SAP và mật khẩu không được ghi vào PostgreSQL.
-- Browser gọi Spring Boot trực tiếp qua `NEXT_PUBLIC_API_BASE_URL`. API public gồm danh sách/chi tiết nhóm, năm đăng, danh mục học vụ, thống kê và health; các thao tác cá nhân cần JWT. Service backend kiểm tra quyền leader/applicant trên từng thao tác.
+- `frontend/src/app/layout.tsx` composes `ThemeProvider`, `Header`, `Sidebar`, `PageTransition`, `Footer`, and `LoginModal` (with an inline theme-init script to avoid dark/light flash). `frontend/src/design-system/` contains design tokens, reusable UI components, and theme primitives. UI localization uses three dictionaries (`en`, `vi`, `ko`) in `frontend/src/i18n/dictionaries/`.
+- `frontend/src/lib/types.ts` centralizes shared TypeScript interfaces; `frontend/src/services/` encapsulates HTTP calls; `frontend/src/lib/queryCache.ts` provides stale-time caching, in-flight request deduplication, and prefix-based invalidation; `frontend/src/stores/` holds Zustand state. `authStore` persists the user profile, JWT, and fetched timetable snapshots in `localStorage` (never passwords or SAP cookies). When a request receives `401` with an active JWT, `lib/api.ts` clears the expired session and opens `LoginModal` while preserving the current path and query string for post-login redirect.
+- `/api/auth/usaint` authenticates against u-SAINT/SAP, extracts the student profile, fetches the current or nearest academic term with timetable data, and exchanges the profile for a Spring Boot JWT. SAP session cookies are stored in Spring Boot's in-memory `UsaintSessionStore` for up to 30 minutes via `/api/internal/usaint-sessions` (protected by a constant-time shared-secret header `X-Internal-Secret`), while the browser only receives an opaque random session ID in an `HttpOnly` cookie (`usaint_timetable_session`). Additional timetable terms are fetched on demand via `POST /api/auth/usaint/timetable` and cleared on logout via `DELETE /api/auth/usaint/timetable`. Passwords and SAP cookies are never persisted to PostgreSQL.
+- The browser calls Spring Boot directly via `NEXT_PUBLIC_API_BASE_URL` for REST and derives the `/ws` WebSocket URL from it. Public endpoints cover group browsing/details, post years, academic units, public statistics, and health checks; user-specific actions require a JWT Bearer token, and backend services enforce leader, member, participant, or applicant authorization per operation.
+- `RealtimeConnection.tsx` maintains a WebSocket connection to `/ws` while logged in, authenticates with an initial `{ type: "auth", token }` frame (8-second server timeout), sends 25-second `ping` heartbeats, and reconnects with exponential backoff (re-fetching notifications and signaling messenger refresh on reconnect).
 
-## 2. Cấu trúc repository
+## 2. Repository Structure
 
 ```text
-campus-match/
+ssu-match/
 ├─ frontend/
 │  ├─ src/app/
-│  │  ├─ page.tsx                   # Trang chủ + thống kê công khai
-│  │  ├─ groups/page.tsx            # Tìm kiếm, lọc và phân trang nhóm
-│  │  ├─ groups/[id]/page.tsx       # Chi tiết, thành viên, ứng tuyển
-│  │  ├─ create-group/page.tsx      # Form tạo nhóm
-│  │  ├─ manage/page.tsx            # Nhóm tôi dẫn dắt / đã tham gia
-│  │  ├─ manage/[groupId]/page.tsx  # Sửa nhóm, duyệt đơn, xóa nhóm
-│  │  ├─ mypage/page.tsx            # Hồ sơ và thời khóa biểu u-SAINT
-│  │  └─ api/{auth/usaint,translate}/route.ts
+│  │  ├─ page.tsx                       # Landing page + public statistics
+│  │  ├─ groups/page.tsx                # Group search, filtering, and pagination
+│  │  ├─ groups/[id]/page.tsx           # Group details, roster, translation, and apply flow
+│  │  ├─ create-group/page.tsx          # Group creation form + role quota editor
+│  │  ├─ manage/page.tsx                # Led and joined groups overview
+│  │  ├─ manage/[groupId]/page.tsx      # Group editing, application review, privacy toggle, deletion
+│  │  ├─ mypage/
+│  │  │  ├─ page.tsx                    # Student profile and timetable page
+│  │  │  ├─ ProfileCard.tsx             # Academic profile card
+│  │  │  └─ TimetableCard.tsx           # Interactive timetable + on-demand term selector
+│  │  └─ api/
+│  │     ├─ auth/usaint/route.ts        # u-SAINT SSO login + initial timetable fetch
+│  │     ├─ auth/usaint/timetable/route.ts # On-demand term fetch + session cleanup
+│  │     └─ translate/route.ts          # Optional FactChat translation proxy
 │  ├─ src/components/{application,auth,common,group,layout}/
-│  ├─ src/design-system/{components,theme}/
+│  ├─ src/design-system/{components,theme,tokens.ts,index.ts}
 │  ├─ src/i18n/dictionaries/{en,vi,ko}.ts
-│  ├─ src/lib/{api,hooks,types,usaint,timetable,timetableParser}.ts
-│  ├─ src/services/{academic,application,group,notification,statistics,translation}Service.ts
-│  └─ src/stores/{auth,language,notification}Store.ts
+│  ├─ src/lib/{api,format,hooks,manageGroup,queryCache,realtimeEvents,textScramble,timetable,timetableParser,types,usaint}.ts
+│  ├─ src/services/{academic,application,group,messenger,notification,statistics,translation}Service.ts
+│  ├─ src/stores/{auth,language,notification}Store.ts
+│  ├─ DESIGN.md
+│  └─ .env.example
 ├─ backend/
 │  ├─ src/main/java/com/campusmatch/
-│  │  ├─ academic/                 # Đồng bộ danh mục SSU, entity snapshot, API
-│  │  ├─ config/                   # Spring Security, CORS
-│  │  ├─ controller/               # Auth, User, Group, Application, Notification, Statistics, Health
-│  │  ├─ dto/                      # Request/response DTO (cùng một thư mục)
-│  │  ├─ entity/                   # JPA schema và enum
-│  │  ├─ repository/               # Spring Data JPA
-│  │  ├─ security/                 # JWT và che mã sinh viên trong response công khai
-│  │  └─ service/                  # Nghiệp vụ và transaction
+│  │  ├─ academic/                      # SSU academic catalog sync, snapshot entity, and API
+│  │  ├─ config/                        # Spring Security filter chain and CORS configuration
+│  │  ├─ controller/                    # Auth, User, Group, Application, Conversation, Notification, Statistics, Health, InternalUsaintSession
+│  │  ├─ dto/                           # Request and response DTOs
+│  │  ├─ entity/                        # JPA entities and enums
+│  │  ├─ realtime/                      # WebSocket config, handler, events, and AFTER_COMMIT listener
+│  │  ├─ repository/                    # Spring Data JPA repositories
+│  │  ├─ security/                      # JWT provider/filter and student ID / email privacy masking
+│  │  └─ service/                       # Transactional business logic and in-memory UsaintSessionStore
 │  ├─ src/main/resources/{application.yaml,academic/ssu-catalog.json}
-│  └─ src/test/java/com/campusmatch/
+│  ├─ src/test/java/com/campusmatch/    # Unit and context tests
+│  ├─ Dockerfile                        # Multi-stage Gradle 9.8.1 / Temurin 17 JRE build
+│  └─ .env.example
+├─ README.md
 └─ architecture.md
 ```
 
-## 3. Mô hình database
+## 3. Database Model
 
-| Bảng | Dữ liệu chính | Quan hệ / quy tắc |
+| Table | Key Columns | Relationships & Rules |
 | --- | --- | --- |
-| `users` | `student_id` duy nhất, tên, khoa/viện, email, năm học, điện thoại, ảnh, role, thời gian đăng nhập | Hồ sơ từ u-SAINT; `student_id` bất biến, các trường hồ sơ còn lại được làm mới khi đăng nhập. |
-| `study_groups` | leader, title, description, college, department, post_year, course_code/name, meeting_format, tags (JSONB), roles_quota (JSONB), contact_email/phone, max_members, status, timestamps | college/department lấy từ leader lúc tạo; contact chỉ lưu khi leader chọn công khai. Tối đa 5 tags, mỗi tag tối đa 50 ký tự; tổng `roles_quota[].max` bằng sức chứa khi tạo, leader chiếm 1 chỗ. |
-| `group_members` | (group_id, user_id), role, joined_at | Khóa chính ghép; role `LEADER` hoặc `MEMBER`. |
-| `applications` | group, applicant, statement, desired_role, status, timestamps | Duy nhất `(group_id, applicant_id)`; status `PENDING`, `ACCEPTED`, `REJECTED`. |
-| `notifications` | recipient, actor, group, type, title, message, link, is_read, created_at | `is_read` và xóa được lưu ở DB. |
-| `academic_catalog_snapshot` | id cố định 1, payload (TEXT) | Lưu bản danh mục học vụ SSU được xác thực; dùng JSON đi kèm ứng dụng làm dữ liệu khởi tạo, đồng bộ định kỳ từ nguồn SSU. |
+| `users` | unique `student_id`, name, department, faculty, email, academic_year, phone_number, avatar_url, role, last_login_at | Synced from u-SAINT on sign-in; `student_id` is immutable while other profile fields are refreshed on login. |
+| `study_groups` | leader, `leader_anonymous`, `post_anonymous` (immutable), title, description, college, department, `post_year`, course_code/name, `meeting_format`, `tags` (JSONB), `roles_quota` (JSONB), contact_email/phone, `max_members`, `status`, timestamps | `college`/`department` come from the leader at creation; contact fields are stored only when the leader opts in. Up to 5 tags (max 50 chars each); `roles_quota[].max` sums to `max_members` at creation with the leader occupying 1 slot. Indexed on `(college, department, post_year)`. |
+| `group_members` | `(group_id, user_id)`, role, `member_anonymous`, `joined_at` | Composite primary key; role is `LEADER` or `MEMBER`. Members can toggle `member_anonymous` for their display identity in the group. |
+| `applications` | group, applicant, `applicant_anonymous`, statement, `desired_role`, status, timestamps | Unique `(group_id, applicant_id)`; status is `PENDING`, `ACCEPTED`, or `REJECTED`. |
+| `conversations` | group, requester, leader, `group_chat`, `requester_anonymous`, timestamps | Unique `(group_id, requester_id)`. Supports both 1:1 applicant–leader chats (`group_chat = false`) and shared group chats (`group_chat = true`). |
+| `chat_messages` | conversation, sender, content (TEXT), `system_message`, `created_at` | Indexed on `(conversation_id, created_at)`. Stores user messages and group system announcements. |
+| `notifications` | recipient, actor, group, type, title, message, link, `is_read`, `created_at` | Read state (`is_read`) and deletions are persisted in PostgreSQL. |
+| `academic_catalog_snapshot` | fixed `id = 1`, payload (TEXT) | Stores the validated SSU college/department catalog; bootstrapped from bundled `ssu-catalog.json` and synced periodically from SSU sources. |
 
-`GroupStatus` còn enum `CLOSED` để đọc bản ghi cũ; form quản lý hiện không cho chọn trạng thái thủ công. Khi tạo nhóm hoặc thay đổi sức chứa, nhóm là `RECRUITING` nếu còn chỗ, `COMPLETED` khi đủ người. Khi duyệt thành viên cuối cùng, backend chuyển sang `COMPLETED`. Giảm sức chứa không được thấp hơn số thành viên hiện có; quota được điều chỉnh theo sức chứa mới; các vai trò đã có thành viên không thể giảm dưới số người đang giữ chỗ.
+- `GroupStatus` retains `CLOSED` for legacy records; the management UI does not allow setting status manually. On group creation or capacity updates, status is derived automatically: `RECRUITING` when spots remain and `COMPLETED` when full. Accepting the final member transitions the group to `COMPLETED`. Reducing capacity below the current member count is rejected, and role quotas cannot be lowered below the number of members already holding a role.
+- Older groups created before `meeting_format` and `tags` were introduced leave those fields empty without automatic backfill.
 
-Nhóm cũ được tạo trước khi lưu `meeting_format` và tags sẽ có các trường này rỗng. Không có dữ liệu để tự backfill. `Group Detail` chỉ hiện nội dung có nguồn trong create form/DB; học kỳ, lịch họp hằng tuần, mục tiêu riêng và tech stack mặc định không thuộc model nhóm hiện tại.
+## 4. REST API & WebSocket Endpoints
 
-## 4. REST API đang có
+Backend REST base path: `/api`. The Next.js BFF exposes its own `/api/*` routes solely for u-SAINT SSO, on-demand timetable loading, and translation.
 
-Base path backend: `/api`. BFF Next.js có base path riêng cùng tên nhưng chỉ xử lý auth u-SAINT và dịch thuật.
-
-| Method | Path | Quyền | Ý nghĩa |
+| Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
-| POST | `/auth/sso/usaint` | public endpoint dành cho BFF | Đồng bộ hồ sơ, cấp JWT. |
-| GET | `/users/me` | JWT | Hồ sơ user trong DB. |
-| GET | `/users/me/groups` | JWT | Nhóm đã tham gia và vai trò. |
-| GET | `/users/me/applications` | JWT | Đơn ứng tuyển của chính user, gồm trạng thái sau refresh. |
-| GET | `/groups`, `/groups/years`, `/groups/{id}` | public | Tìm kiếm/phân trang, năm đăng, chi tiết nhóm. |
-| POST | `/groups` | JWT | Tạo nhóm, lưu leader trong `group_members`. |
-| PUT | `/groups/{id}` | JWT + leader | Sửa các trường của Create Group (title, description, course, meeting format, tags, liên hệ, sức chứa, role quotas); tự tính status. |
-| DELETE | `/groups/{id}` | JWT + leader | Xóa nhóm và dữ liệu liên quan. |
-| POST | `/groups/{id}/applications` | JWT | Nộp đơn; từ chối leader, member và đơn pending trùng. |
-| GET | `/groups/{id}/applications` | JWT + leader | Xem đơn của nhóm. |
-| PUT | `/applications/{id}/accept`, `/applications/{id}/reject` | JWT + leader | Chỉ xử lý đơn `PENDING`; accept thêm member, tăng role quota. |
-| DELETE | `/applications/{id}` | JWT + applicant | Rút đơn `PENDING`. |
-| GET | `/notifications`, `/notifications/unread-count` | JWT | Danh sách và số thông báo chưa đọc. |
-| PATCH | `/notifications/{id}/read`, `/notifications/read-all` | JWT | Đánh dấu đã đọc trong DB. |
-| DELETE | `/notifications/{id}`, `/notifications` | JWT | Xóa một hoặc tất cả thông báo. |
-| GET | `/statistics`, `/academic-units`, `/health` | public | Thống kê COUNT từ DB, snapshot danh mục học vụ, kiểm tra server. |
+| POST | `/auth/sso/usaint` | Public (called by BFF) | Sync student profile and issue a 24-hour JWT. |
+| GET | `/users/me` | JWT | Current user profile with full `studentId`. |
+| GET | `/users/me/groups` | JWT | Groups led or joined by the current user. |
+| GET | `/users/me/applications` | JWT | Current user's applications and up-to-date statuses. |
+| GET | `/groups`, `/groups/years`, `/groups/{id}` | Public | Search/paginate groups, list post years, fetch group detail and roster. |
+| POST | `/groups` | JWT | Create a study group and add the creator as `LEADER` in `group_members`. |
+| PUT | `/groups/{id}` | JWT + leader | Update group fields (title, description, course, format, tags, contacts, capacity, role quotas); recompute status. |
+| PATCH | `/groups/{id}/members/me/privacy` | JWT + member | Toggle the current member's anonymous display setting (`memberAnonymous`). |
+| DELETE | `/groups/{id}` | JWT + leader | Delete the group and associated records. |
+| POST | `/groups/{id}/applications` | JWT | Submit an application; rejects leaders, existing members, and duplicate pending applications. |
+| GET | `/groups/{id}/applications` | JWT + leader | List applications submitted to the group. |
+| PUT | `/applications/{id}/accept`, `/applications/{id}/reject` | JWT + leader | Process `PENDING` applications; accepting adds the member and increments role quota. |
+| DELETE | `/applications/{id}` | JWT + applicant | Withdraw a `PENDING` application. |
+| GET | `/conversations` | JWT | List 1:1 application chats and group chats with latest message and participant count. |
+| GET | `/conversations/{id}/messages` | JWT + participant | Load chronological message history for an authorized conversation. |
+| POST | `/conversations/{id}/messages` | JWT + participant | Persist a chat message and push `message.created` over WebSocket. |
+| GET | `/notifications`, `/notifications/unread-count` | JWT | Fetch notifications and unread count. |
+| PATCH | `/notifications/{id}/read`, `/notifications/read-all` | JWT | Mark one or all notifications as read. |
+| DELETE | `/notifications/{id}`, `/notifications` | JWT | Delete one or all notifications. |
+| GET | `/statistics`, `/academic-units`, `/health` | Public | Database `COUNT` statistics, academic catalog snapshot, health check. |
+| POST / GET / DELETE | `/internal/usaint-sessions[/{id}]` | `X-Internal-Secret` | Ephemeral in-memory SAP cookie store for Next.js BFF timetable requests. |
+| WS | `/ws` | First-frame JWT `auth` | Server-push channel for `notification.created` and `message.created` events (`ping`/`pong` keepalive). |
 
-`GET /groups` nhận `keyword`, `college`, `department`, `postYear`, `status` và Spring `page`, `size`, `sort`. Sắp xếp “spots left” dùng thuộc tính tính toán `availableSpots` trong SQL trước khi phân trang. Các response công khai che mã sinh viên; API riêng `/users/me` giữ mã đầy đủ cho chủ tài khoản.
+- `GET /groups` supports `keyword`, `college`, `department`, `postYear`, `status`, and Spring pagination (`page`, `size`, `sort`). Sorting by remaining spots uses the Hibernate `@Formula` `availableSpots` column in SQL prior to pagination.
+- **Privacy masking (`StudentIdPrivacy`)**: Public responses always mask student IDs to only the last two characters (e.g., `******12`), and omit emails that contain another user's full student ID. Authenticated `/users/me` returns the full student ID to the account owner.
 
-## 5. Luồng nghiệp vụ UI → API → database
+## 5. Core Workflows (UI → API → Database)
 
-1. **Create Group:** form gửi title, description, course code/name, sức chứa 2–20, hình thức họp, tags, liên hệ được chọn công khai và role quotas. Backend gắn leader, college/department, postYear, ghi các thuộc tính nhóm vào `study_groups` (tags và role quotas là JSONB) cùng `group_members` trong transaction.
-2. **Browse / Detail:** pages lấy group summary/detail từ backend; member count, status, leader, contacts, format, tags, quotas và roster đều lấy từ response. Nút Join khóa cho leader, thành viên hiện tại, người đã có đơn pending và nhóm đủ người. Trang chi tiết dùng dịch thuật tùy chọn cho title/description/role text; bản dịch không ghi DB.
-3. **Apply:** ứng viên gửi lời giới thiệu, vai trò mong muốn. Các trường skills/GitHub/portfolio trên form hiện được ghép vào `statement` (text), chưa có cột riêng. Backend xác nhận quyền, quota và trạng thái nhóm. Đơn `REJECTED` có thể nộp lại, `PENDING`/`ACCEPTED` không thể nộp trùng. `GET /users/me/applications` phục hồi trạng thái đã nộp sau refresh.
-4. **Manage:** leader lấy nhóm và đơn từ DB, sửa thông tin đã tạo qua một PUT transaction cập nhật `study_groups`, duyệt/từ chối đơn pending, xóa nhóm. Member chỉ xem nhóm của mình.
-5. **Notifications:** đọc/xóa xác nhận qua backend trước khi đổi state UI; refresh lại lấy trạng thái `isRead` từ DB.
+1. **Authentication & On-Demand Timetable:** Submitting u-SAINT credentials posts to Next.js `/api/auth/usaint`, which verifies via `usaint-lib`/SAP, loads the current or nearest term with timetable data, saves SAP cookies in `UsaintSessionStore` behind an `HttpOnly` session ID cookie, and calls `/api/auth/sso/usaint` for a JWT. Switching terms in `TimetableCard` calls `/api/auth/usaint/timetable` to fetch and cache that term on demand.
+2. **Create Group:** The form submits title, description, optional course code/name, capacity (2–20), meeting format, tags, optional public contacts, anonymous posting preference, and role quotas. The backend attaches leader metadata (`college`, `department`, `postYear`) and writes `study_groups` (JSONB `tags` and `roles_quota`) and the leader's `group_members` row in a single transaction.
+3. **Browse & Detail:** Pages fetch paginated summaries and group details through `queryCache.ts` to minimize redundant requests. The Join button is disabled for the leader, current members, users with a `PENDING` application, and full groups. Group Detail supports optional client-triggered translation via `/api/translate` (translations are not persisted).
+4. **Apply & Review:** Applicants submit a statement (with optional skills/GitHub/portfolio fields concatenated into `statement`), desired role, and anonymity preference. Rejected applicants may re-apply; `PENDING`/`ACCEPTED` duplicates are blocked. Leaders accept or reject pending applications in `/manage/[groupId]`, while applicants can withdraw pending applications.
+5. **Manage & Privacy:** Leaders edit group details via a transactional `PUT`, review applications, and delete groups. Members can view their joined groups and toggle their per-group anonymity via `PATCH /groups/{id}/members/me/privacy`.
+6. **Messenger & Real-Time Notifications:** Application and group conversations are persisted in `conversations` and `chat_messages`. When messages or notifications are saved, Spring publishes domain events consumed by `RealtimeEventListener` (`TransactionPhase.AFTER_COMMIT`), pushing `message.created` and `notification.created` frames to connected WebSocket sessions. The frontend deduplicates REST responses against WebSocket deliveries in `MessengerDropdown` and `notificationStore`.
 
-## 6. Cấu hình và kiểm tra
+## 6. Configuration, Deployment, and Verification
 
-- Backend: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET` (`backend/.env.example`); PostgreSQL driver, Spring JPA `ddl-auto: update`.
-- Database hiện tại đã được chuyển từ hai bảng tags/role quotas cũ sang hai cột JSONB trong `study_groups`. Repository không còn chứa script chuyển đổi; database cũ khác cần một kế hoạch di chuyển dữ liệu riêng trước khi chạy bản backend này. `ddl-auto: update` không tự xóa bảng cũ hoặc chuyển dữ liệu.
-- Frontend: `NEXT_PUBLIC_API_BASE_URL`; `SPRING_BOOT_API_URL` cho BFF auth (mặc định `http://localhost:8080`); `SPRING_BOOT_INTERNAL_SECRET` phải trùng với `INTERNAL_API_SECRET` backend để lưu/đọc phiên u-SAINT; `FACTCHAT_API_KEY`/`FACTCHAT_MODEL` tùy chọn cho dịch thuật (`frontend/.env.example`).
-- CORS backend hiện cho `localhost:3000` và `127.0.0.1:3000`; origin production phải được cấu hình trước khi triển khai.
-- Kiểm tra frontend: `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm build`. Kiểm tra backend: `./gradlew test --offline`. Test khởi tạo Spring context chỉ chạy khi có `DB_URL` trong môi trường; unit tests không cần database.
+- **Backend environment (`backend/.env.example`):** `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, `INTERNAL_API_SECRET`. Packaged via `backend/Dockerfile` (multi-stage `gradle:9.8.1-jdk17` builder + `eclipse-temurin:17-jre` runtime).
+- **Frontend environment (`frontend/.env.example`):** `NEXT_PUBLIC_API_BASE_URL` (default `http://localhost:8080/api`), `SPRING_BOOT_API_URL` (default `http://localhost:8080`), `SPRING_BOOT_INTERNAL_SECRET` (must match backend `INTERNAL_API_SECRET`), and optional `FACTCHAT_API_KEY` / `FACTCHAT_MODEL` for translation.
+- **CORS & WebSocket origins:** Both `SecurityConfig` and `RealtimeWebSocketConfig` currently allow `http://localhost:3000`, `http://127.0.0.1:3000`, `https://campus-frontend-xi.vercel.app`, `https://ssumatch.com`, and `https://www.ssumatch.com`.
+- **Verification commands:**
+  - Frontend: `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm build`
+  - Backend: `./gradlew test --offline` (Spring context tests run only when `DB_URL` is present; unit tests for academic catalog, statistics, notifications, privacy masking, applications, and group updates run without a database).
 
-## 7. Giới hạn đang tồn tại
+## 7. Current Limitations
 
-- Schema hiện do Hibernate tự cập nhật, không có lịch sử migration trong repository. Cần tích hợp công cụ migration có version trước khi nâng cấp schema trên các database có dữ liệu.
-- `POST /api/auth/sso/usaint` hiện được SecurityConfig cho public để BFF gọi nhưng chưa có chứng thực nội bộ giữa BFF và backend. Không nên coi payload profile gửi trực tiếp tới endpoint này là đã được u-SAINT xác minh. Cần khóa endpoint bằng cơ chế server-to-server trước khi public deployment.
-- Bài kiểm thử Spring context và đọc JSONB bằng JPA chỉ chạy khi môi trường cấp `DB_URL`; các unit tests còn lại không cần database.
+- **No versioned SQL migrations yet:** Although Flyway is enabled in `application.yaml`, no migration files exist in `backend/src/main/resources/db/migration/`, so Hibernate `ddl-auto: update` still applies schema changes. Add baseline and versioned Flyway migrations before performing destructive or multi-environment schema changes.
+- **Unauthenticated BFF-to-backend SSO endpoint:** `POST /api/auth/sso/usaint` is permitted in `SecurityConfig` without server-to-server authentication (unlike `/api/internal/usaint-sessions`). Protect this endpoint with shared-secret or mutual authentication so arbitrary clients cannot mint JWTs for arbitrary `studentId` payloads.
+- **Single-instance in-memory state:** `UsaintSessionStore` and `RealtimeWebSocketHandler` session maps live in JVM memory. Scaling the backend horizontally across multiple instances will require externalizing session storage and WebSocket fan-out (e.g., via Redis).
+- **Database-gated integration tests:** Spring context startup and PostgreSQL JSONB persistence tests only execute when `DB_URL` is configured in the test environment.
